@@ -1,19 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AI Chatbot (Google Gemini)</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div id="chat-container">
-    <div id="chat-box"></div>
-    <form id="chat-form">
-      <input type="text" id="user-input" autocomplete="off" placeholder="Type your message..." required />
+<html>
+  <head>
+    <title>Chatbot</title>
+    <style>
+      #chat-output div { margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <form id="chat-form" autocomplete="off">
+      <input type="text" id="user-input" placeholder="Say something..." />
       <button type="submit">Send</button>
     </form>
-  </div>
-  <script src="script.js"></script>
-</body>
+    <div id="chat-output"></div>
+    <script>
+      document.getElementById('chat-form').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const input = document.getElementById('user-input');
+        const messageText = input.value;
+        if (!messageText) return;
+        const chatOutput = document.getElementById('chat-output');
+        chatOutput.innerHTML += `<div><b>You:</b> ${messageText}</div>`;
+        const response = await fetch('/api/openrouter', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            history: [{ role: "user", text: messageText }]
+          })
+        });
+        const data = await response.json();
+        chatOutput.innerHTML += `<div><b>Bot:</b> ${data.text}</div>`;
+        input.value = '';
+      });
+    </script>
+  </body>
 </html>
