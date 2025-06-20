@@ -4,27 +4,32 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Missing Hyperbeam API key in environment variables." });
   }
 
-  // Set session to expire after 5 minutes (300 seconds)
-  const payload = {
-    expires_in: 300
-  };
+  try {
+    const payload = { expires_in: 300 };
+    const response = await fetch("https://engine.hyperbeam.com/v0/vm", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
 
-  // Create the Hyperbeam session
-  const response = await fetch("https://engine.hyperbeam.com/v0/vm", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+    const data = await response.json();
 
-  if (!response.ok) {
-    const error = await response.json();
-    return res.status(500).json({ error: error.error || "Failed to create Hyperbeam session." });
+    if (!response.ok) {
+      // Log and return the real error from Hyperbeam
+      console.error("Hyperbeam error:", data);
+      return res.status(500).json({ error: data.error || JSON.stringify(data) });
+    }
+
+    if (data && data.url) {
+      return res.status(200).json({ url: data.url });
+    } else {
+      return res.status(500).json({ error: "No URL in Hyperbeam response: " + JSON.stringify(data) });
+    }
+  } catch (err) {
+    console.error("Server error:", err);
+    return res.status(500).json({ error: "Server error: " + err.message });
   }
-
-  const data = await response.json();
-  // data.url is the embed URL for the session
-  res.status(200).json({ url: data.url });
 }
