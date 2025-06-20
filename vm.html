@@ -39,6 +39,12 @@
     button:hover:not(:disabled) {
       background: #174aa1;
     }
+    #hyperbeam-frame {
+      display: none;
+      margin: 2rem auto 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
     #error-message {
       color: #d32f2f;
       margin-top: 1rem;
@@ -81,25 +87,40 @@
       margin-bottom: 1rem;
       display: none;
     }
+    @media (max-width: 820px) {
+      #hyperbeam-frame {
+        width: 98vw;
+        height: 60vw;
+        min-height: 300px;
+        max-width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="container">
     <h1>Start a Hyperbeam Session</h1>
-    <button id="open-hyperbeam">Open Hyperbeam Tab</button>
-    <button id="close-all-tabs">Close All Hyperbeam Tabs</button>
+    <button id="embed-hyperbeam">Show in Page</button>
     <button id="end-session">End Session</button>
+    <button id="close-all-tabs">Close All Hyperbeam Tabs</button>
     <div id="timer-box" style="display:none;">
       <i id="timer-icon" class='bx bx-timer bx-spin'></i>
       <span id="timer"></span>
     </div>
     <div id="loading"></div>
     <div id="error-message"></div>
+    <iframe
+      id="hyperbeam-frame"
+      width="800"
+      height="600"
+      allow="clipboard-read; clipboard-write; microphone; camera; display-capture"
+    ></iframe>
   </div>
   <script>
-    const openBtn = document.getElementById('open-hyperbeam');
+    const embedBtn = document.getElementById('embed-hyperbeam');
     const endBtn = document.getElementById('end-session');
     const closeAllBtn = document.getElementById('close-all-tabs');
+    const frame = document.getElementById('hyperbeam-frame');
     const errorMsg = document.getElementById('error-message');
     const loadingMsg = document.getElementById('loading');
     const timerDiv = document.getElementById('timer');
@@ -109,28 +130,32 @@
     let timer = null;
     let timeLeft = 0;
     let sessionActive = false;
-    let hyperbeamTabs = []; // stores window references
+    let hyperbeamTabs = [];
 
     function resetUI() {
       errorMsg.textContent = "";
       loadingMsg.textContent = "";
       timerDiv.textContent = "";
       timerBox.style.display = "none";
+      frame.style.display = "none";
+      frame.src = "";
+      endBtn.style.display = "none";
       sessionActive = false;
       clearInterval(timer);
-      openBtn.disabled = false;
-      endBtn.style.display = "none";
+      embedBtn.disabled = false;
     }
 
     function showError(err) {
       errorMsg.textContent = err;
       loadingMsg.textContent = "";
+      frame.style.display = "none";
+      frame.src = "";
       timerDiv.textContent = "";
       timerBox.style.display = "none";
+      endBtn.style.display = "none";
       sessionActive = false;
       clearInterval(timer);
-      openBtn.disabled = false;
-      endBtn.style.display = "none";
+      embedBtn.disabled = false;
     }
 
     function startTimer(durationSeconds) {
@@ -170,7 +195,7 @@
       return `Session time left: ${m}:${s.toString().padStart(2, '0')}`;
     }
 
-    function openHyperbeamTab() {
+    function startHyperbeamEmbed() {
       if (sessionActive) return;
       resetUI();
       loadingMsg.textContent = "Starting Hyperbeam session...";
@@ -180,19 +205,14 @@
           loadingMsg.textContent = "";
           if (data.url) {
             sessionActive = true;
-            openBtn.disabled = true;
+            embedBtn.disabled = true;
             endBtn.style.display = "inline-block";
-            closeAllBtn.style.display = "inline-block";
             startTimer(5 * 60); // 5 minutes = 300 seconds
-            // Open the Hyperbeam session in a new tab and keep reference
-            const newTab = window.open(data.url, '_blank');
-            if (newTab) {
-              hyperbeamTabs.push(newTab);
-            } else {
-              showError("Failed to open new tab. Please allow popups for this site.");
-              endSession();
-              return;
-            }
+            frame.src = data.url;
+            frame.style.display = "block";
+            // Track "opened tab" for closing (simulate tabs)
+            hyperbeamTabs.push(data.url);
+            closeAllBtn.style.display = "inline-block";
           } else {
             showError("Failed to start session: " + (data.error || "Unknown error"));
           }
@@ -208,26 +228,24 @@
       sessionActive = false;
       timerDiv.textContent = "Session ended.";
       timerBox.style.display = "flex";
-      openBtn.disabled = false;
+      frame.src = "";
+      frame.style.display = "none";
       endBtn.style.display = "none";
-      // Optionally, close all tabs when session ends
-      closeAllHyperbeamTabs();
+      embedBtn.disabled = false;
     }
 
+    // Tries to close all "opened" Hyperbeam tabs (simulated)
     function closeAllHyperbeamTabs() {
-      // Close all tabs that were opened by this page
-      hyperbeamTabs = hyperbeamTabs.filter(tab => {
-        if (tab && !tab.closed) {
-          tab.close();
-          return false;
-        }
-        return false;
-      });
+      // Attempt to close tabs opened via window.open (none in this version), but for iframe we just reset
+      endSession();
+      hyperbeamTabs = [];
       closeAllBtn.style.display = "none";
+      timerBox.style.display = "none";
+      showError("All Hyperbeam sessions closed.");
     }
 
-    openBtn.onclick = function() {
-      openHyperbeamTab();
+    embedBtn.onclick = function() {
+      startHyperbeamEmbed();
     };
 
     endBtn.onclick = function() {
