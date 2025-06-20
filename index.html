@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chat with AI</title>
+  <title>Chat with AI (Multi-Model)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
@@ -78,6 +78,14 @@
       border-radius: 6px;
       outline: none;
     }
+    select {
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      background: #fcfcfc;
+      margin-right: 8px;
+    }
     button {
       padding: 0 22px;
       border-radius: 6px;
@@ -97,16 +105,29 @@
       font-size: 0.98em;
       padding: 8px 0 0 10px;
     }
+    .info {
+      color: #444;
+      font-size: 0.96em;
+      padding: 8px 0 0 10px;
+    }
   </style>
 </head>
 <body>
   <div class="chat-container">
     <div class="chat-history" id="chat-history"></div>
     <form id="chat-form" autocomplete="off">
+      <select id="model-select">
+        <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
+        <option value="anthropic/claude-3-opus">Claude 3 Opus (5/10min)</option>
+        <option value="anthropic/claude-3-haiku">Claude 3 Haiku (5/10min)</option>
+        <option value="anthropic/claude-3-sonnet">Claude 3 Sonnet (5/10min)</option>
+      </select>
       <input id="chat-input" type="text" placeholder="Type a message..." autocomplete="off" required />
       <button type="submit" id="send-btn">Send</button>
     </form>
     <div class="error" id="error"></div>
+    <div class="info" id="info"></div>
   </div>
   <script>
     const historyEl = document.getElementById('chat-history');
@@ -114,10 +135,39 @@
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
     const errorEl = document.getElementById('error');
+    const infoEl = document.getElementById('info');
+    const modelSelect = document.getElementById('model-select');
 
-    // Store chat history for context
+    // Models with a 5 message / 10 minute window
+    const limitedModels = [
+      "anthropic/claude-3-opus",
+      "anthropic/claude-3-haiku",
+      "anthropic/claude-3-sonnet"
+    ];
+    const LIMIT = 5;
+    const WINDOW_MINUTES = 10;
+    const WINDOW_MS = WINDOW_MINUTES * 60 * 1000;
+
+    // Chat and usage state
     let history = [];
+    let usage = {}; // { model: [timestamps] }
 
+    // --- Persisted state helpers (sessionStorage) ---
+    function loadState() {
+      try {
+        history = JSON.parse(sessionStorage.getItem('chat-history') || '[]');
+        usage = JSON.parse(sessionStorage.getItem('chat-usage') || '{}');
+        const savedModel = sessionStorage.getItem('chat-model');
+        if (savedModel) modelSelect.value = savedModel;
+      } catch {}
+    }
+    function saveState() {
+      sessionStorage.setItem('chat-history', JSON.stringify(history));
+      sessionStorage.setItem('chat-usage', JSON.stringify(usage));
+      sessionStorage.setItem('chat-model', modelSelect.value);
+    }
+
+    // --- Chat UI ---
     function renderHistory() {
       historyEl.innerHTML = '';
       for (const msg of history) {
@@ -128,8 +178,6 @@
       }
       historyEl.scrollTop = historyEl.scrollHeight;
     }
-
-    // Escape HTML to prevent XSS
     function escapeHTML(str) {
       return str.replace(/[&<>"']/g, function(m) {
         return ({
@@ -142,18 +190,75 @@
       });
     }
 
+    // --- Model Selection and Usage Limiting ---
+    function getModel() {
+      return modelSelect.value;
+    }
+    function getUsage(model) {
+      if (!usage[model]) usage[model] = [];
+      // Prune old timestamps
+      const now = Date.now();
+      usage[model] = usage[model].filter(ts => now - ts < WINDOW_MS);
+      return usage[model];
+    }
+    function canSend(model) {
+      if (!limitedModels.includes(model)) return {ok:true};
+      const times = getUsage(model);
+      if (times.length < LIMIT) return {ok:true};
+      const nextOk = times[0] + WINDOW_MS - Date.now();
+      return {ok:false, wait:Math.ceil(nextOk/1000)};
+    }
+    function recordUsage(model) {
+      if (!usage[model]) usage[model] = [];
+      usage[model].push(Date.now());
+      saveState();
+    }
+    function updateInfo() {
+      const model = getModel();
+      if (!limitedModels.includes(model)) {
+        infoEl.textContent = '';
+        return;
+      }
+      const times = getUsage(model);
+      if (times.length < LIMIT) {
+        infoEl.textContent = `You have ${LIMIT - times.length} messages left for ${model.split('/')[1]} in this 10-minute window.`;
+      } else {
+        const wait = Math.ceil((times[0] + WINDOW_MS - Date.now())/1000);
+        infoEl.textContent = `Claude model limit reached. Wait ${wait} seconds to send another message.`;
+      }
+    }
+
+    // --- Chat Logic ---
     async function sendMessage(userText) {
       errorEl.textContent = '';
       sendBtn.disabled = true;
       input.disabled = true;
+      modelSelect.disabled = true;
+      saveState();
+
+      const model = getModel();
+      // Rate limit check
+      const allowed = canSend(model);
+      if (!allowed.ok) {
+        errorEl.textContent = `Rate limit for ${model.split('/')[1]}: Wait ${allowed.wait} seconds.`;
+        sendBtn.disabled = false;
+        input.disabled = false;
+        modelSelect.disabled = false;
+        input.focus();
+        updateInfo();
+        return;
+      }
+
       // Add user message to history
       history.push({ role: 'user', text: userText });
       renderHistory();
+      saveState();
+
       try {
         const response = await fetch('/api/openrouter', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ history })
+          body: JSON.stringify({ history, model })
         });
         if (!response.ok) {
           let err = 'Server error. Please try again.';
@@ -165,15 +270,21 @@
         }
         const data = await response.json();
         history.push({ role: 'assistant', text: data.text });
+        recordUsage(model);
         renderHistory();
+        updateInfo();
+        saveState();
       } catch (err) {
         errorEl.textContent = err.message || 'Unknown error occurred.';
         // Remove last user message if failed (to avoid bad history)
         history.pop();
         renderHistory();
+        updateInfo();
+        saveState();
       }
       sendBtn.disabled = false;
       input.disabled = false;
+      modelSelect.disabled = false;
       input.focus();
     }
 
@@ -185,19 +296,15 @@
       input.value = '';
     });
 
-    // Optional: Restore session on reload (uncomment if you want persistence)
-    // if (window.sessionStorage) {
-    //   try {
-    //     history = JSON.parse(sessionStorage.getItem('chat-history') || '[]');
-    //     renderHistory();
-    //   } catch {}
-    // }
-    // function saveHistory() {
-    //   if (window.sessionStorage) sessionStorage.setItem('chat-history', JSON.stringify(history));
-    // }
-    // setInterval(saveHistory, 2000);
+    modelSelect.addEventListener('change', () => {
+      updateInfo();
+      saveState();
+    });
 
-    // Focus on input at start
+    // --- Initial Load ---
+    loadState();
+    renderHistory();
+    updateInfo();
     input.focus();
   </script>
 </body>
