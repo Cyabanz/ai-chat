@@ -27,10 +27,14 @@
       border-radius: 4px;
       font-size: 1.2em;
       cursor: pointer;
-      margin: 1rem 0;
+      margin: 1rem 0.5rem 1rem 0.5rem;
       transition: background 0.2s;
     }
-    button:hover {
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
       background: #174aa1;
     }
     #hyperbeam-frame {
@@ -48,6 +52,13 @@
       margin-top: 1rem;
       color: #555;
     }
+    #timer {
+      font-size: 1.1em;
+      color: #333;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -55,6 +66,8 @@
     <h1>Start a Hyperbeam Session</h1>
     <button id="start-hyperbeam">Open in New Tab</button>
     <button id="embed-hyperbeam">Show in Page</button>
+    <button id="end-session" style="display:none; background:#d32f2f;">End Session</button>
+    <div id="timer"></div>
     <div id="loading"></div>
     <div id="error-message"></div>
     <iframe
@@ -67,15 +80,27 @@
   <script>
     const startBtn = document.getElementById('start-hyperbeam');
     const embedBtn = document.getElementById('embed-hyperbeam');
+    const endBtn = document.getElementById('end-session');
     const frame = document.getElementById('hyperbeam-frame');
     const errorMsg = document.getElementById('error-message');
     const loadingMsg = document.getElementById('loading');
+    const timerDiv = document.getElementById('timer');
+
+    let timer = null;
+    let timeLeft = 0;
+    let sessionActive = false;
 
     function resetUI() {
       errorMsg.textContent = "";
       loadingMsg.textContent = "";
+      timerDiv.textContent = "";
       frame.style.display = "none";
       frame.src = "";
+      endBtn.style.display = "none";
+      sessionActive = false;
+      clearInterval(timer);
+      startBtn.disabled = false;
+      embedBtn.disabled = false;
     }
 
     function showError(err) {
@@ -83,9 +108,37 @@
       loadingMsg.textContent = "";
       frame.style.display = "none";
       frame.src = "";
+      timerDiv.textContent = "";
+      endBtn.style.display = "none";
+      sessionActive = false;
+      clearInterval(timer);
+      startBtn.disabled = false;
+      embedBtn.disabled = false;
+    }
+
+    function startTimer(durationSeconds) {
+      timeLeft = durationSeconds;
+      timerDiv.textContent = formatTime(timeLeft);
+      clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+          timerDiv.textContent = "Session ended (time limit reached)";
+          endSession();
+        } else {
+          timerDiv.textContent = formatTime(timeLeft);
+        }
+      }, 1000);
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `Session time left: ${m}:${s.toString().padStart(2, '0')}`;
     }
 
     function startHyperbeam(openInTab) {
+      if (sessionActive) return;
       resetUI();
       loadingMsg.textContent = "Starting Hyperbeam session...";
       fetch('/api/hyperbeam')
@@ -93,8 +146,14 @@
         .then(data => {
           loadingMsg.textContent = "";
           if (data.url) {
+            sessionActive = true;
+            startBtn.disabled = true;
+            embedBtn.disabled = true;
+            endBtn.style.display = "inline-block";
+            startTimer(5 * 60); // 5 minutes = 300 seconds
             if (openInTab) {
               window.open(data.url, '_blank');
+              timerDiv.textContent += " (opened in new tab)";
             } else {
               frame.src = data.url;
               frame.style.display = "block";
@@ -108,6 +167,18 @@
         });
     }
 
+    function endSession() {
+      if (!sessionActive) return;
+      clearInterval(timer);
+      sessionActive = false;
+      timerDiv.textContent = "Session ended.";
+      frame.src = "";
+      frame.style.display = "none";
+      endBtn.style.display = "none";
+      startBtn.disabled = false;
+      embedBtn.disabled = false;
+    }
+
     startBtn.onclick = function() {
       startHyperbeam(true);
     };
@@ -115,6 +186,15 @@
     embedBtn.onclick = function() {
       startHyperbeam(false);
     };
+
+    endBtn.onclick = function() {
+      endSession();
+    };
+
+    // Optional: end session if user navigates away or closes tab
+    window.addEventListener('beforeunload', function() {
+      endSession();
+    });
   </script>
 </body>
 </html>
