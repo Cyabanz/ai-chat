@@ -10,11 +10,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { history } = req.body || {};
+  const { history, model } = req.body || {};
   if (!Array.isArray(history)) {
     res.status(400).json({ error: "Missing or invalid 'history' array in request body." });
     return;
   }
+
+  // Default to GPT-3.5 if not specified
+  const modelName = typeof model === "string" && model.length > 0
+    ? model
+    : "openai/gpt-3.5-turbo";
 
   const messages = history.map(item => ({
     role: item.role === "user" ? "user" : "assistant",
@@ -29,7 +34,7 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo", // Change model here if needed
+        model: modelName,
         messages
       }),
     });
