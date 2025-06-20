@@ -2,13 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Hyperbeam VM Demo</title>
-  <link rel="stylesheet" href="/style.css">
+  <title>Start Hyperbeam Session</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f6f8fa;
+    }
+    #container {
+      max-width: 700px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+    button {
+      background: #2266e3;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 4px;
+      font-size: 1.2em;
+      cursor: pointer;
+      margin: 1rem 0;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #174aa1;
+    }
+    #hyperbeam-frame {
+      display: none;
+      margin: 2rem auto 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #error-message {
+      color: #d32f2f;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    #loading {
+      margin-top: 1rem;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
-  <h1>Hyperbeam VM Demo (5-minute session)</h1>
-  <button id="start-btn">Start Virtual Machine Session</button>
-  <div id="session-container"></div>
-  <script src="/main.js"></script>
+  <div id="container">
+    <h1>Start a Hyperbeam Session</h1>
+    <button id="start-hyperbeam">Open in New Tab</button>
+    <button id="embed-hyperbeam">Show in Page</button>
+    <div id="loading"></div>
+    <div id="error-message"></div>
+    <iframe
+      id="hyperbeam-frame"
+      width="800"
+      height="600"
+      allow="clipboard-read; clipboard-write; microphone; camera; display-capture"
+    ></iframe>
+  </div>
+  <script>
+    const startBtn = document.getElementById('start-hyperbeam');
+    const embedBtn = document.getElementById('embed-hyperbeam');
+    const frame = document.getElementById('hyperbeam-frame');
+    const errorMsg = document.getElementById('error-message');
+    const loadingMsg = document.getElementById('loading');
+
+    function resetUI() {
+      errorMsg.textContent = "";
+      loadingMsg.textContent = "";
+      frame.style.display = "none";
+      frame.src = "";
+    }
+
+    function showError(err) {
+      errorMsg.textContent = err;
+      loadingMsg.textContent = "";
+      frame.style.display = "none";
+      frame.src = "";
+    }
+
+    function startHyperbeam(openInTab) {
+      resetUI();
+      loadingMsg.textContent = "Starting Hyperbeam session...";
+      fetch('/api/hyperbeam')
+        .then(res => res.json())
+        .then(data => {
+          loadingMsg.textContent = "";
+          if (data.url) {
+            if (openInTab) {
+              window.open(data.url, '_blank');
+            } else {
+              frame.src = data.url;
+              frame.style.display = "block";
+            }
+          } else {
+            showError("Failed to start session: " + (data.error || "Unknown error"));
+          }
+        })
+        .catch(err => {
+          showError("Network error: " + err.message);
+        });
+    }
+
+    startBtn.onclick = function() {
+      startHyperbeam(true);
+    };
+
+    embedBtn.onclick = function() {
+      startHyperbeam(false);
+    };
+  </script>
 </body>
 </html>
