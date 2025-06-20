@@ -1,7 +1,12 @@
-export default async function handler(req, res) {
+const fetch = require('node-fetch'); // If on Netlify, node-fetch is already available
+
+exports.handler = async function(event, context) {
   const API_KEY = process.env.HYPERBEAM_API_KEY;
   if (!API_KEY) {
-    return res.status(500).json({ error: "Missing Hyperbeam API key in environment variables." });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Missing Hyperbeam API key in environment variables." })
+    };
   }
 
   try {
@@ -19,16 +24,28 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       console.error("Hyperbeam error:", data);
-      return res.status(500).json({ error: data.error || JSON.stringify(data) });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: data.error || JSON.stringify(data) })
+      };
     }
 
     if (data && data.embed_url) {
-      return res.status(200).json({ url: data.embed_url });
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ url: data.embed_url })
+      };
     } else {
-      return res.status(500).json({ error: "No embed_url in Hyperbeam response: " + JSON.stringify(data) });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "No embed_url in Hyperbeam response: " + JSON.stringify(data) })
+      };
     }
   } catch (err) {
     console.error("Server error:", err);
-    return res.status(500).json({ error: "Server error: " + err.message });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Server error: " + err.message })
+    };
   }
-}
+};
