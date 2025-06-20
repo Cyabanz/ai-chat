@@ -18,17 +18,20 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Hyperbeam error:", data);
       return res.status(500).json({ error: data.error || JSON.stringify(data) });
     }
 
-    if (data && data.embed_url) {
-      return res.status(200).json({ url: data.embed_url });
+    // Return session_id and admin_token for session termination
+    if (data && data.embed_url && data.session_id && data.admin_token) {
+      return res.status(200).json({
+        url: data.embed_url,
+        session_id: data.session_id,
+        admin_token: data.admin_token
+      });
     } else {
-      return res.status(500).json({ error: "No embed_url in Hyperbeam response: " + JSON.stringify(data) });
+      return res.status(500).json({ error: "No embed_url/session_id/admin_token in Hyperbeam response: " + JSON.stringify(data) });
     }
   } catch (err) {
-    console.error("Server error:", err);
     return res.status(500).json({ error: "Server error: " + err.message });
   }
 }
