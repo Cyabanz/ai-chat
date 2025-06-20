@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo", // Change model here as needed
+        model: "openai/gpt-3.5-turbo", // Change model here if needed
         messages
       }),
     });
@@ -37,7 +37,6 @@ export default async function handler(req, res) {
     const data = await apiRes.json();
 
     if (!apiRes.ok) {
-      console.error("OpenRouter API error:", data);
       res.status(500).json({ error: data.error?.message || "OpenRouter API error" });
       return;
     }
