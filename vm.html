@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Start Hyperbeam Session</title>
+  <title>Hyperbeam Session (5 Minute Limit)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Boxicons CDN for animated icons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -52,22 +54,59 @@
       margin-top: 1rem;
       color: #555;
     }
-    #timer {
-      font-size: 1.1em;
-      color: #333;
+    #timer-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: 1.25em;
+      color: #222;
       margin-top: 1rem;
       margin-bottom: 1rem;
       font-weight: bold;
+    }
+    #timer-icon {
+      font-size: 2em;
+      transition: color 0.2s;
+      animation: timer-spin 1s linear infinite;
+    }
+    @keyframes timer-spin {
+      100% { transform: rotate(360deg);}
+    }
+    #close-all-tabs {
+      background: #d32f2f;
+      color: white;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    #end-session {
+      background: #d32f2f;
+      color: white;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    @media (max-width: 820px) {
+      #hyperbeam-frame {
+        width: 98vw;
+        height: 60vw;
+        min-height: 300px;
+        max-width: 100%;
+      }
     }
   </style>
 </head>
 <body>
   <div id="container">
     <h1>Start a Hyperbeam Session</h1>
-    <button id="start-hyperbeam">Open in New Tab</button>
     <button id="embed-hyperbeam">Show in Page</button>
-    <button id="end-session" style="display:none; background:#d32f2f;">End Session</button>
-    <div id="timer"></div>
+    <button id="end-session">End Session</button>
+    <button id="close-all-tabs">Close All Hyperbeam Tabs</button>
+    <div id="timer-box" style="display:none;">
+      <i id="timer-icon" class='bx bx-timer bx-spin'></i>
+      <span id="timer"></span>
+    </div>
     <div id="loading"></div>
     <div id="error-message"></div>
     <iframe
@@ -78,28 +117,31 @@
     ></iframe>
   </div>
   <script>
-    const startBtn = document.getElementById('start-hyperbeam');
     const embedBtn = document.getElementById('embed-hyperbeam');
     const endBtn = document.getElementById('end-session');
+    const closeAllBtn = document.getElementById('close-all-tabs');
     const frame = document.getElementById('hyperbeam-frame');
     const errorMsg = document.getElementById('error-message');
     const loadingMsg = document.getElementById('loading');
     const timerDiv = document.getElementById('timer');
+    const timerBox = document.getElementById('timer-box');
+    const timerIcon = document.getElementById('timer-icon');
 
     let timer = null;
     let timeLeft = 0;
     let sessionActive = false;
+    let hyperbeamTabs = [];
 
     function resetUI() {
       errorMsg.textContent = "";
       loadingMsg.textContent = "";
       timerDiv.textContent = "";
+      timerBox.style.display = "none";
       frame.style.display = "none";
       frame.src = "";
       endBtn.style.display = "none";
       sessionActive = false;
       clearInterval(timer);
-      startBtn.disabled = false;
       embedBtn.disabled = false;
     }
 
@@ -109,26 +151,42 @@
       frame.style.display = "none";
       frame.src = "";
       timerDiv.textContent = "";
+      timerBox.style.display = "none";
       endBtn.style.display = "none";
       sessionActive = false;
       clearInterval(timer);
-      startBtn.disabled = false;
       embedBtn.disabled = false;
     }
 
     function startTimer(durationSeconds) {
       timeLeft = durationSeconds;
-      timerDiv.textContent = formatTime(timeLeft);
+      updateTimerUI();
       clearInterval(timer);
+      timerBox.style.display = "flex";
+      timerIcon.classList.add("bx-spin");
       timer = setInterval(() => {
         timeLeft--;
+        updateTimerUI();
         if (timeLeft <= 0) {
           timerDiv.textContent = "Session ended (time limit reached)";
+          timerIcon.classList.remove("bx-spin");
           endSession();
-        } else {
-          timerDiv.textContent = formatTime(timeLeft);
         }
       }, 1000);
+    }
+
+    function updateTimerUI() {
+      timerDiv.textContent = formatTime(timeLeft);
+      if (timeLeft <= 10) {
+        timerIcon.style.color = "#d32f2f";
+        timerDiv.style.color = "#d32f2f";
+      } else if (timeLeft <= 60) {
+        timerIcon.style.color = "#fbc02d";
+        timerDiv.style.color = "#fbc02d";
+      } else {
+        timerIcon.style.color = "#2266e3";
+        timerDiv.style.color = "#222";
+      }
     }
 
     function formatTime(seconds) {
@@ -137,7 +195,7 @@
       return `Session time left: ${m}:${s.toString().padStart(2, '0')}`;
     }
 
-    function startHyperbeam(openInTab) {
+    function startHyperbeamEmbed() {
       if (sessionActive) return;
       resetUI();
       loadingMsg.textContent = "Starting Hyperbeam session...";
@@ -147,17 +205,14 @@
           loadingMsg.textContent = "";
           if (data.url) {
             sessionActive = true;
-            startBtn.disabled = true;
             embedBtn.disabled = true;
             endBtn.style.display = "inline-block";
             startTimer(5 * 60); // 5 minutes = 300 seconds
-            if (openInTab) {
-              window.open(data.url, '_blank');
-              timerDiv.textContent += " (opened in new tab)";
-            } else {
-              frame.src = data.url;
-              frame.style.display = "block";
-            }
+            frame.src = data.url;
+            frame.style.display = "block";
+            // Track "opened tab" for closing (simulate tabs)
+            hyperbeamTabs.push(data.url);
+            closeAllBtn.style.display = "inline-block";
           } else {
             showError("Failed to start session: " + (data.error || "Unknown error"));
           }
@@ -172,23 +227,33 @@
       clearInterval(timer);
       sessionActive = false;
       timerDiv.textContent = "Session ended.";
+      timerBox.style.display = "flex";
       frame.src = "";
       frame.style.display = "none";
       endBtn.style.display = "none";
-      startBtn.disabled = false;
       embedBtn.disabled = false;
     }
 
-    startBtn.onclick = function() {
-      startHyperbeam(true);
-    };
+    // Tries to close all "opened" Hyperbeam tabs (simulated)
+    function closeAllHyperbeamTabs() {
+      // Attempt to close tabs opened via window.open (none in this version), but for iframe we just reset
+      endSession();
+      hyperbeamTabs = [];
+      closeAllBtn.style.display = "none";
+      timerBox.style.display = "none";
+      showError("All Hyperbeam sessions closed.");
+    }
 
     embedBtn.onclick = function() {
-      startHyperbeam(false);
+      startHyperbeamEmbed();
     };
 
     endBtn.onclick = function() {
       endSession();
+    };
+
+    closeAllBtn.onclick = function() {
+      closeAllHyperbeamTabs();
     };
 
     // Optional: end session if user navigates away or closes tab
