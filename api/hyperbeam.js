@@ -18,15 +18,14 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      // Log and return the real error from Hyperbeam
       console.error("Hyperbeam error:", data);
       return res.status(500).json({ error: data.error || JSON.stringify(data) });
     }
 
-    if (data && data.url) {
-      return res.status(200).json({ url: data.url });
+    if (data && data.embed_url) {
+      return res.status(200).json({ url: data.embed_url });
     } else {
-      return res.status(500).json({ error: "No URL in Hyperbeam response: " + JSON.stringify(data) });
+      return res.status(500).json({ error: "No embed_url in Hyperbeam response: " + JSON.stringify(data) });
     }
   } catch (err) {
     console.error("Server error:", err);
