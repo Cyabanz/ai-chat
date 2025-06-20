@@ -2,203 +2,269 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chat with AI</title>
+  <title>Hyperbeam Session (5 Minute Limit)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Boxicons CDN for animated icons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <style>
     body {
-      font-family: system-ui, sans-serif;
-      background: #f8f8f8;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f6f8fa;
     }
-    .chat-container {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-      max-width: 600px;
-      margin: 40px auto 0 auto;
+    #container {
+      max-width: 700px;
+      margin: 0 auto;
       background: #fff;
+      padding: 2rem;
       border-radius: 8px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.06);
-      overflow: hidden;
-      height: 80vh;
-    }
-    .chat-history {
-      flex: 1 1 auto;
-      padding: 16px;
-      overflow-y: auto;
-      background: #fafafa;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .msg {
-      display: flex;
-      flex-direction: column;
-      max-width: 80%;
-    }
-    .msg.user {
-      align-self: flex-end;
-      background: #e6f7fa;
-      border-radius: 14px 14px 2px 14px;
-      padding: 8px 12px;
-      margin-left: 20%;
-    }
-    .msg.ai {
-      align-self: flex-start;
-      background: #f0f0f0;
-      border-radius: 14px 14px 14px 2px;
-      padding: 8px 12px;
-      margin-right: 20%;
-    }
-    .msg .role {
-      font-weight: bold;
-      font-size: 0.93em;
-      margin-bottom: 2px;
-      color: #3898ec;
-    }
-    .msg.ai .role {
-      color: #9c27b0;
-    }
-    form {
-      display: flex;
-      padding: 12px 10px;
-      border-top: 1px solid #eaeaea;
-      background: #fff;
-      gap: 10px;
-    }
-    input[type="text"] {
-      flex: 1 1 auto;
-      padding: 10px;
-      font-size: 1em;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      outline: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      text-align: center;
     }
     button {
-      padding: 0 22px;
-      border-radius: 6px;
+      background: #2266e3;
+      color: white;
       border: none;
-      background: #3898ec;
-      color: #fff;
-      font-size: 1em;
+      padding: 1rem 2rem;
+      border-radius: 4px;
+      font-size: 1.2em;
       cursor: pointer;
-      transition: background .18s;
+      margin: 1rem 0.5rem 1rem 0.5rem;
+      transition: background 0.2s;
     }
     button:disabled {
-      background: #bbb;
+      background: #aaa;
       cursor: not-allowed;
     }
-    .error {
-      color: #b00020;
-      font-size: 0.98em;
-      padding: 8px 0 0 10px;
+    button:hover:not(:disabled) {
+      background: #174aa1;
+    }
+    #error-message {
+      color: #d32f2f;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    #loading {
+      margin-top: 1rem;
+      color: #555;
+    }
+    #timer-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: 1.25em;
+      color: #222;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      font-weight: bold;
+    }
+    #timer-icon {
+      font-size: 2em;
+      transition: color 0.2s;
+      animation: timer-spin 1s linear infinite;
+    }
+    @keyframes timer-spin {
+      100% { transform: rotate(360deg);}
+    }
+    #close-all-tabs {
+      background: #d32f2f;
+      color: white;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    #end-session {
+      background: #d32f2f;
+      color: white;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-history" id="chat-history"></div>
-    <form id="chat-form" autocomplete="off">
-      <input id="chat-input" type="text" placeholder="Type a message..." autocomplete="off" required />
-      <button type="submit" id="send-btn">Send</button>
-    </form>
-    <div class="error" id="error"></div>
+  <div id="container">
+    <h1>Start a Hyperbeam Session</h1>
+    <button id="open-hyperbeam">Open Hyperbeam Tab</button>
+    <button id="close-all-tabs">Close All Hyperbeam Tabs</button>
+    <button id="end-session">End Session</button>
+    <div id="timer-box" style="display:none;">
+      <i id="timer-icon" class='bx bx-timer bx-spin'></i>
+      <span id="timer"></span>
+    </div>
+    <div id="loading"></div>
+    <div id="error-message"></div>
   </div>
   <script>
-    const historyEl = document.getElementById('chat-history');
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
-    const errorEl = document.getElementById('error');
+    const openBtn = document.getElementById('open-hyperbeam');
+    const endBtn = document.getElementById('end-session');
+    const closeAllBtn = document.getElementById('close-all-tabs');
+    const errorMsg = document.getElementById('error-message');
+    const loadingMsg = document.getElementById('loading');
+    const timerDiv = document.getElementById('timer');
+    const timerBox = document.getElementById('timer-box');
+    const timerIcon = document.getElementById('timer-icon');
 
-    // Store chat history for context
-    let history = [];
+    let timer = null;
+    let timeLeft = 0;
+    let sessionActive = false;
+    let hyperbeamTabs = []; // stores window references
 
-    function renderHistory() {
-      historyEl.innerHTML = '';
-      for (const msg of history) {
-        const div = document.createElement('div');
-        div.className = 'msg ' + (msg.role === 'user' ? 'user' : 'ai');
-        div.innerHTML = `<span class="role">${msg.role === 'user' ? 'You' : 'AI'}</span>${escapeHTML(msg.text)}`;
-        historyEl.appendChild(div);
-      }
-      historyEl.scrollTop = historyEl.scrollHeight;
+    // For session termination
+    let session_id = null;
+    let admin_token = null;
+
+    function resetUI() {
+      errorMsg.textContent = "";
+      loadingMsg.textContent = "";
+      timerDiv.textContent = "";
+      timerBox.style.display = "none";
+      sessionActive = false;
+      clearInterval(timer);
+      openBtn.disabled = false;
+      endBtn.style.display = "none";
+      session_id = null;
+      admin_token = null;
     }
 
-    // Escape HTML to prevent XSS
-    function escapeHTML(str) {
-      return str.replace(/[&<>"']/g, function(m) {
-        return ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        })[m];
-      });
+    function showError(err) {
+      errorMsg.textContent = err;
+      loadingMsg.textContent = "";
+      timerDiv.textContent = "";
+      timerBox.style.display = "none";
+      sessionActive = false;
+      clearInterval(timer);
+      openBtn.disabled = false;
+      endBtn.style.display = "none";
+      session_id = null;
+      admin_token = null;
     }
 
-    async function sendMessage(userText) {
-      errorEl.textContent = '';
-      sendBtn.disabled = true;
-      input.disabled = true;
-      // Add user message to history
-      history.push({ role: 'user', text: userText });
-      renderHistory();
-      try {
-        const response = await fetch('/api/openrouter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ history })
-        });
-        if (!response.ok) {
-          let err = 'Server error. Please try again.';
-          try {
-            const data = await response.json();
-            err = data.error || err;
-          } catch {}
-          throw new Error(err);
+    function startTimer(durationSeconds) {
+      timeLeft = durationSeconds;
+      updateTimerUI();
+      clearInterval(timer);
+      timerBox.style.display = "flex";
+      timerIcon.classList.add("bx-spin");
+      timer = setInterval(() => {
+        timeLeft--;
+        updateTimerUI();
+        if (timeLeft <= 0) {
+          timerDiv.textContent = "Session ended (time limit reached)";
+          timerIcon.classList.remove("bx-spin");
+          endSession();
         }
-        const data = await response.json();
-        history.push({ role: 'assistant', text: data.text });
-        renderHistory();
-      } catch (err) {
-        errorEl.textContent = err.message || 'Unknown error occurred.';
-        // Remove last user message if failed (to avoid bad history)
-        history.pop();
-        renderHistory();
-      }
-      sendBtn.disabled = false;
-      input.disabled = false;
-      input.focus();
+      }, 1000);
     }
 
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      sendMessage(text);
-      input.value = '';
+    function updateTimerUI() {
+      timerDiv.textContent = formatTime(timeLeft);
+      if (timeLeft <= 10) {
+        timerIcon.style.color = "#d32f2f";
+        timerDiv.style.color = "#d32f2f";
+      } else if (timeLeft <= 60) {
+        timerIcon.style.color = "#fbc02d";
+        timerDiv.style.color = "#fbc02d";
+      } else {
+        timerIcon.style.color = "#2266e3";
+        timerDiv.style.color = "#222";
+      }
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `Session time left: ${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function openHyperbeamTab() {
+      if (sessionActive) return;
+      resetUI();
+      loadingMsg.textContent = "Starting Hyperbeam session...";
+      fetch('/api/hyperbeam')
+        .then(res => res.json())
+        .then(data => {
+          loadingMsg.textContent = "";
+          if (data.url && data.session_id && data.admin_token) {
+            sessionActive = true;
+            openBtn.disabled = true;
+            endBtn.style.display = "inline-block";
+            closeAllBtn.style.display = "inline-block";
+            startTimer(5 * 60); // 5 minutes = 300 seconds
+            // Open the Hyperbeam session in a new tab and keep reference
+            const newTab = window.open(data.url, '_blank');
+            if (newTab) {
+              hyperbeamTabs.push(newTab);
+              // Store credentials for session termination
+              session_id = data.session_id;
+              admin_token = data.admin_token;
+            } else {
+              showError("Failed to open new tab. Please allow popups for this site.");
+              endSession();
+              return;
+            }
+          } else {
+            showError("Failed to start session: " + (data.error || "Unknown error"));
+          }
+        })
+        .catch(err => {
+          showError("Network error: " + err.message);
+        });
+    }
+
+    function endSession() {
+      if (!sessionActive) return;
+      clearInterval(timer);
+      sessionActive = false;
+      timerDiv.textContent = "Session ended.";
+      timerBox.style.display = "flex";
+      openBtn.disabled = false;
+      endBtn.style.display = "none";
+      // Properly terminate the Hyperbeam session on the backend
+      if (session_id && admin_token) {
+        fetch('/api/end-hyperbeam', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id, admin_token })
+        }).then(r => r.json()).then(data => {
+          // Optionally show confirmation to user
+        });
+      }
+      // Optionally, close all tabs when session ends
+      closeAllHyperbeamTabs();
+      session_id = null;
+      admin_token = null;
+    }
+
+    function closeAllHyperbeamTabs() {
+      // Close all tabs that were opened by this page
+      hyperbeamTabs = hyperbeamTabs.filter(tab => {
+        if (tab && !tab.closed) {
+          tab.close();
+          return false;
+        }
+        return false;
+      });
+      closeAllBtn.style.display = "none";
+    }
+
+    openBtn.onclick = function() {
+      openHyperbeamTab();
+    };
+
+    endBtn.onclick = function() {
+      endSession();
+    };
+
+    closeAllBtn.onclick = function() {
+      closeAllHyperbeamTabs();
+    };
+
+    // Optional: end session if user navigates away or closes tab
+    window.addEventListener('beforeunload', function() {
+      endSession();
     });
-
-    // Optional: Restore session on reload (uncomment if you want persistence)
-    // if (window.sessionStorage) {
-    //   try {
-    //     history = JSON.parse(sessionStorage.getItem('chat-history') || '[]');
-    //     renderHistory();
-    //   } catch {}
-    // }
-    // function saveHistory() {
-    //   if (window.sessionStorage) sessionStorage.setItem('chat-history', JSON.stringify(history));
-    // }
-    // setInterval(saveHistory, 2000);
-
-    // Focus on input at start
-    input.focus();
   </script>
 </body>
 </html>
