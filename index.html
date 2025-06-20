@@ -296,7 +296,11 @@
       input.value = '';
     });
 
+    // --- Clear chat history and usage when switching model ---
     modelSelect.addEventListener('change', () => {
+      history = [];
+      usage = {};
+      renderHistory();
       updateInfo();
       saveState();
     });
