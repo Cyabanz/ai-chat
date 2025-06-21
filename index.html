@@ -1,315 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Chat with AI (Multi-Model)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Hyperbeam Embed (Vercel/Mobile)</title>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f8f8f8;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    .chat-container {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-      max-width: 600px;
-      margin: 40px auto 0 auto;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.06);
-      overflow: hidden;
-      height: 80vh;
-    }
-    .chat-history {
-      flex: 1 1 auto;
-      padding: 16px;
-      overflow-y: auto;
-      background: #fafafa;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .msg {
-      display: flex;
-      flex-direction: column;
-      max-width: 80%;
-    }
-    .msg.user {
-      align-self: flex-end;
-      background: #e6f7fa;
-      border-radius: 14px 14px 2px 14px;
-      padding: 8px 12px;
-      margin-left: 20%;
-    }
-    .msg.ai {
-      align-self: flex-start;
-      background: #f0f0f0;
-      border-radius: 14px 14px 14px 2px;
-      padding: 8px 12px;
-      margin-right: 20%;
-    }
-    .msg .role {
-      font-weight: bold;
-      font-size: 0.93em;
-      margin-bottom: 2px;
-      color: #3898ec;
-    }
-    .msg.ai .role {
-      color: #9c27b0;
-    }
-    form {
-      display: flex;
-      padding: 12px 10px;
-      border-top: 1px solid #eaeaea;
-      background: #fff;
-      gap: 10px;
-    }
-    input[type="text"] {
-      flex: 1 1 auto;
-      padding: 10px;
-      font-size: 1em;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      outline: none;
-    }
-    select {
-      padding: 10px;
-      font-size: 1em;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      background: #fcfcfc;
-      margin-right: 8px;
-    }
-    button {
-      padding: 0 22px;
-      border-radius: 6px;
-      border: none;
-      background: #3898ec;
-      color: #fff;
-      font-size: 1em;
-      cursor: pointer;
-      transition: background .18s;
-    }
-    button:disabled {
-      background: #bbb;
-      cursor: not-allowed;
-    }
-    .error {
-      color: #b00020;
-      font-size: 0.98em;
-      padding: 8px 0 0 10px;
-    }
-    .info {
-      color: #444;
-      font-size: 0.96em;
-      padding: 8px 0 0 10px;
+    body { font-family: sans-serif; padding: 1rem; }
+    #container { margin-top: 1.5rem; }
+    iframe { border: 0; width: 100%; min-height: 65vw; max-width: 900px; height: 60vh; }
+    .hidden { display: none; }
+    button { margin: 1rem 0.5rem 1rem 0; padding: 0.5rem 1.2rem; font-size: 1.1rem; }
+    #status { margin-top: 1rem; color: #c00; }
+    @media (max-width: 600px) {
+      iframe { min-height: 60vw; height: 45vh; }
+      button { font-size: 1rem; }
     }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-history" id="chat-history"></div>
-    <form id="chat-form" autocomplete="off">
-      <select id="model-select">
-        <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
-        <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
-        <option value="anthropic/claude-3-opus">Claude 3 Opus (5/10min)</option>
-        <option value="anthropic/claude-3-haiku">Claude 3 Haiku (5/10min)</option>
-        <option value="anthropic/claude-3-sonnet">Claude 3 Sonnet (5/10min)</option>
-      </select>
-      <input id="chat-input" type="text" placeholder="Type a message..." autocomplete="off" required />
-      <button type="submit" id="send-btn">Send</button>
-    </form>
-    <div class="error" id="error"></div>
-    <div class="info" id="info"></div>
-  </div>
+  <h2>Hyperbeam Session Demo</h2>
+  <button id="start">Start Hyperbeam Session</button>
+  <button id="terminate" class="hidden">Terminate Session</button>
+  <div id="container"></div>
+  <div id="status"></div>
   <script>
-    const historyEl = document.getElementById('chat-history');
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
-    const errorEl = document.getElementById('error');
-    const infoEl = document.getElementById('info');
-    const modelSelect = document.getElementById('model-select');
-
-    // Models with a 5 message / 10 minute window
-    const limitedModels = [
-      "anthropic/claude-3-opus",
-      "anthropic/claude-3-haiku",
-      "anthropic/claude-3-sonnet"
-    ];
-    const LIMIT = 5;
-    const WINDOW_MINUTES = 10;
-    const WINDOW_MS = WINDOW_MINUTES * 60 * 1000;
-
-    // Chat and usage state
-    let history = [];
-    let usage = {}; // { model: [timestamps] }
-
-    // --- Persisted state helpers (sessionStorage) ---
-    function loadState() {
+    let session = null, pollTimer = null;
+    function setStatus(msg) { document.getElementById('status').textContent = msg || ''; }
+    function disableButtons(disabled) {
+      document.getElementById('start').disabled = disabled || !!session;
+      document.getElementById('terminate').disabled = disabled || !session;
+    }
+    function endSession(msg) {
+      clearInterval(pollTimer);
+      session = null;
+      document.getElementById('container').innerHTML = '';
+      document.getElementById('terminate').classList.add('hidden');
+      setStatus(msg);
+      disableButtons(false);
+    }
+    async function startSession() {
+      setStatus(''); disableButtons(true);
       try {
-        history = JSON.parse(sessionStorage.getItem('chat-history') || '[]');
-        usage = JSON.parse(sessionStorage.getItem('chat-usage') || '{}');
-        const savedModel = sessionStorage.getItem('chat-model');
-        if (savedModel) modelSelect.value = savedModel;
-      } catch {}
-    }
-    function saveState() {
-      sessionStorage.setItem('chat-history', JSON.stringify(history));
-      sessionStorage.setItem('chat-usage', JSON.stringify(usage));
-      sessionStorage.setItem('chat-model', modelSelect.value);
-    }
-
-    // --- Chat UI ---
-    function renderHistory() {
-      historyEl.innerHTML = '';
-      for (const msg of history) {
-        const div = document.createElement('div');
-        div.className = 'msg ' + (msg.role === 'user' ? 'user' : 'ai');
-        div.innerHTML = `<span class="role">${msg.role === 'user' ? 'You' : 'AI'}</span>${escapeHTML(msg.text)}`;
-        historyEl.appendChild(div);
-      }
-      historyEl.scrollTop = historyEl.scrollHeight;
-    }
-    function escapeHTML(str) {
-      return str.replace(/[&<>"']/g, function(m) {
-        return ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        })[m];
-      });
-    }
-
-    // --- Model Selection and Usage Limiting ---
-    function getModel() {
-      return modelSelect.value;
-    }
-    function getUsage(model) {
-      if (!usage[model]) usage[model] = [];
-      // Prune old timestamps
-      const now = Date.now();
-      usage[model] = usage[model].filter(ts => now - ts < WINDOW_MS);
-      return usage[model];
-    }
-    function canSend(model) {
-      if (!limitedModels.includes(model)) return {ok:true};
-      const times = getUsage(model);
-      if (times.length < LIMIT) return {ok:true};
-      const nextOk = times[0] + WINDOW_MS - Date.now();
-      return {ok:false, wait:Math.ceil(nextOk/1000)};
-    }
-    function recordUsage(model) {
-      if (!usage[model]) usage[model] = [];
-      usage[model].push(Date.now());
-      saveState();
-    }
-    function updateInfo() {
-      const model = getModel();
-      if (!limitedModels.includes(model)) {
-        infoEl.textContent = '';
-        return;
-      }
-      const times = getUsage(model);
-      if (times.length < LIMIT) {
-        infoEl.textContent = `You have ${LIMIT - times.length} messages left for ${model.split('/')[1]} in this 10-minute window.`;
-      } else {
-        const wait = Math.ceil((times[0] + WINDOW_MS - Date.now())/1000);
-        infoEl.textContent = `Claude model limit reached. Wait ${wait} seconds to send another message.`;
-      }
-    }
-
-    // --- Chat Logic ---
-    async function sendMessage(userText) {
-      errorEl.textContent = '';
-      sendBtn.disabled = true;
-      input.disabled = true;
-      modelSelect.disabled = true;
-      saveState();
-
-      const model = getModel();
-      // Rate limit check
-      const allowed = canSend(model);
-      if (!allowed.ok) {
-        errorEl.textContent = `Rate limit for ${model.split('/')[1]}: Wait ${allowed.wait} seconds.`;
-        sendBtn.disabled = false;
-        input.disabled = false;
-        modelSelect.disabled = false;
-        input.focus();
-        updateInfo();
-        return;
-      }
-
-      // Add user message to history
-      history.push({ role: 'user', text: userText });
-      renderHistory();
-      saveState();
-
-      try {
-        const response = await fetch('/api/openrouter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ history, model })
+        const res = await fetch('/api/hyperbeam', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ url: "https://youtube.com", expires_in: 300 })
         });
-        if (!response.ok) {
-          let err = 'Server error. Please try again.';
-          try {
-            const data = await response.json();
-            err = data.error || err;
-          } catch {}
-          throw new Error(err);
-        }
-        const data = await response.json();
-        history.push({ role: 'assistant', text: data.text });
-        recordUsage(model);
-        renderHistory();
-        updateInfo();
-        saveState();
-      } catch (err) {
-        errorEl.textContent = err.message || 'Unknown error occurred.';
-        // Remove last user message if failed (to avoid bad history)
-        history.pop();
-        renderHistory();
-        updateInfo();
-        saveState();
+        session = await res.json();
+        if (!res.ok) throw new Error(session.error || "Failed to start session");
+        document.getElementById('container').innerHTML = `<iframe src="${session.url}" allow="autoplay; fullscreen"></iframe>`;
+        document.getElementById('terminate').classList.remove('hidden');
+        pollTimer = setInterval(checkSessionStatus, 5000);
+      } catch (e) {
+        setStatus(e.message || "Unknown error");
+        session = null;
       }
-      sendBtn.disabled = false;
-      input.disabled = false;
-      modelSelect.disabled = false;
-      input.focus();
+      disableButtons(false);
     }
-
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      sendMessage(text);
-      input.value = '';
-    });
-
-    // --- Clear chat history and usage when switching model ---
-    modelSelect.addEventListener('change', () => {
-      history = [];
-      usage = {};
-      renderHistory();
-      updateInfo();
-      saveState();
-    });
-
-    // --- Initial Load ---
-    loadState();
-    renderHistory();
-    updateInfo();
-    input.focus();
+    async function terminateSession() {
+      if (!session) return;
+      setStatus(''); disableButtons(true);
+      try {
+        const res = await fetch('/api/hyperbeam', {
+          method: 'DELETE', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ session_id: session.session_id, admin_token: session.admin_token })
+        });
+        await res.json();
+        endSession("Session terminated.");
+      } catch (e) {
+        setStatus("Failed to terminate: " + (e.message || "Unknown error"));
+      }
+      disableButtons(false);
+    }
+    async function checkSessionStatus() {
+      if (!session) return;
+      try {
+        const res = await fetch(`/api/hyperbeam?session_id=${session.session_id}&admin_token=${session.admin_token}`);
+        const data = await res.json();
+        if (data.status === 'terminated') {
+          endSession("Session ended or expired.");
+        }
+      } catch (e) {
+        endSession("Session check failed or expired.");
+      }
+    }
+    document.getElementById('start').onclick = startSession;
+    document.getElementById('terminate').onclick = terminateSession;
   </script>
 </body>
 </html>
