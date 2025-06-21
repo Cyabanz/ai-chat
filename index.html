@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Hyperbeam Embed (Vercel/Mobile)</title>
+  <title>Hyperbeam Embed</title>
   <style>
     body { font-family: sans-serif; padding: 1rem; }
     #container { margin-top: 1.5rem; }
-    iframe { border: 0; width: 100%; min-height: 65vw; max-width: 900px; height: 60vh; }
+    iframe { border: 0; width: 100%; max-width: 900px; height: 60vh; }
     .hidden { display: none; }
     button { margin: 1rem 0.5rem 1rem 0; padding: 0.5rem 1.2rem; font-size: 1.1rem; }
     #status { margin-top: 1rem; color: #c00; }
     @media (max-width: 600px) {
-      iframe { min-height: 60vw; height: 45vh; }
+      iframe { height: 45vh; }
       button { font-size: 1rem; }
     }
   </style>
@@ -48,6 +48,7 @@
         if (!res.ok) throw new Error(session.error || "Failed to start session");
         document.getElementById('container').innerHTML = `<iframe src="${session.url}" allow="autoplay; fullscreen"></iframe>`;
         document.getElementById('terminate').classList.remove('hidden');
+        // Poll for session expiration
         pollTimer = setInterval(checkSessionStatus, 5000);
       } catch (e) {
         setStatus(e.message || "Unknown error");
@@ -61,7 +62,7 @@
       try {
         const res = await fetch('/api/hyperbeam', {
           method: 'DELETE', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ session_id: session.session_id, admin_token: session.admin_token })
+          body: JSON.stringify({ session_id: session.session_id })
         });
         await res.json();
         endSession("Session terminated.");
@@ -73,7 +74,7 @@
     async function checkSessionStatus() {
       if (!session) return;
       try {
-        const res = await fetch(`/api/hyperbeam?session_id=${session.session_id}&admin_token=${session.admin_token}`);
+        const res = await fetch(`/api/hyperbeam?session_id=${session.session_id}`);
         const data = await res.json();
         if (data.status === 'terminated') {
           endSession("Session ended or expired.");
