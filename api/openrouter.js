@@ -16,7 +16,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Default to GPT-3.5 if not specified
   const modelName = typeof model === "string" && model.length > 0
     ? model
     : "openai/gpt-3.5-turbo";
@@ -42,7 +41,7 @@ export default async function handler(req, res) {
     const data = await apiRes.json();
 
     if (!apiRes.ok) {
-      res.status(500).json({ error: data.error?.message || "OpenRouter API error" });
+      res.status(500).json({ error: data.error?.message || data.error || "OpenRouter API error" });
       return;
     }
 
