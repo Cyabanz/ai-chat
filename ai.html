@@ -617,48 +617,51 @@
       this.usageData.messages.count++;
       await this.firebaseUsageRef.set(this.usageData);
 
-      // Append user message to messages array
+      // Append user message to messages array (get latest snapshot before writing)
       const convoRef = this.firebaseConvoListRef.child(this.activeConvoId);
-      const convo = this.conversations[this.activeConvoId] || {meta: {}, messages: []};
-      const messages = (convo.messages || []).concat([{
-        role: 'user',
-        text: userMessage,
-        timestamp: new Date().toISOString()
-      }]);
-      const meta = {
-        ...convo.meta,
-        lastUpdated: Date.now(),
-        title: (convo.meta && convo.meta.title && convo.meta.title !== 'New conversation')
-          ? convo.meta.title
-          : this.suggestTitleForConversation(messages)
-      };
-      await convoRef.set({meta, messages});
-      this.userInput.value = '';
-      this.isTyping = true;
-      this.updateSendButtonState();
-      this.showTypingIndicator();
-      try {
-        const aiResponse = await this.callOpenRouterAPI(messages);
-        this.hideTypingIndicator();
-        const newMessages = messages.concat([{
-          role: 'ai',
-          text: aiResponse,
+      convoRef.once('value', (snapshot) => {
+        const convo = snapshot.val() || {meta: {}, messages: []};
+        const messages = (convo.messages || []).concat([{
+          role: 'user',
+          text: userMessage,
           timestamp: new Date().toISOString()
         }]);
-        await convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: newMessages});
-      } catch (error) {
-        this.hideTypingIndicator();
-        const errorMessage = {
-          role: 'ai',
-          text: `Sorry, I encountered an error: ${error.message}. Please try again.`,
-          timestamp: new Date().toISOString()
+        const meta = {
+          ...convo.meta,
+          lastUpdated: Date.now(),
+          title: (convo.meta && convo.meta.title && convo.meta.title !== 'New conversation')
+            ? convo.meta.title
+            : this.suggestTitleForConversation(messages)
         };
-        await convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: messages.concat([errorMessage])});
-      } finally {
-        this.isTyping = false;
-        this.updateSendButtonState();
-        this.userInput.focus();
-      }
+        convoRef.set({meta, messages}).then(async () => {
+          this.userInput.value = '';
+          this.isTyping = true;
+          this.updateSendButtonState();
+          this.showTypingIndicator();
+          try {
+            const aiResponse = await this.callOpenRouterAPI(messages);
+            this.hideTypingIndicator();
+            const newMessages = messages.concat([{
+              role: 'ai',
+              text: aiResponse,
+              timestamp: new Date().toISOString()
+            }]);
+            convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: newMessages});
+          } catch (error) {
+            this.hideTypingIndicator();
+            const errorMessage = {
+              role: 'ai',
+              text: `Sorry, I encountered an error: ${error.message}. Please try again.`,
+              timestamp: new Date().toISOString()
+            };
+            convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: messages.concat([errorMessage])});
+          } finally {
+            this.isTyping = false;
+            this.updateSendButtonState();
+            this.userInput.focus();
+          }
+        });
+      });
     }
 
     suggestTitleForConversation(messages) {
@@ -744,10 +747,12 @@
     async appendMessageToActiveConvo(message) {
       if (!this.activeConvoId) return;
       const convoRef = this.firebaseConvoListRef.child(this.activeConvoId);
-      const convo = this.conversations[this.activeConvoId] || {meta: {}, messages: []};
-      const messages = (convo.messages || []).concat([message]);
-      const meta = {...convo.meta, lastUpdated: Date.now()};
-      await convoRef.set({meta, messages});
+      convoRef.once('value', (snapshot) => {
+        const convo = snapshot.val() || {meta: {}, messages: []};
+        const messages = (convo.messages || []).concat([message]);
+        const meta = {...convo.meta, lastUpdated: Date.now()};
+        convoRef.set({meta, messages});
+      });
     }
 
     showSearchHistory() {
