@@ -14,7 +14,7 @@
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh;}
     #container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden;}
-    .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 20px; text-align: center;}
+    .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 20px; text-align: center; position: relative;}
     .header h1 { margin: 0; font-size: 24px; font-weight: 600;}
     .usage-bar { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e9ecef;}
     .usage-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;}
@@ -30,7 +30,7 @@
     .message { margin: 15px 0; display: flex; align-items: flex-start; animation: messageSlide 0.3s ease-out;}
     @keyframes messageSlide { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);}}
     .message.user { justify-content: flex-end;}
-    .message-content { max-width: 80%; padding: 12px 16px; border-radius: 18px; position: relative;}
+    .message-content { max-width: 80%; padding: 12px 16px; border-radius: 18px; position: relative; word-wrap: break-word;}
     .message.user .message-content { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; border-bottom-right-radius: 6px;}
     .message.ai .message-content { background: #f1f3f4; color: #333; border-bottom-left-radius: 6px;}
     .message-sender { font-size: 12px; font-weight: 600; margin-bottom: 4px; opacity: 0.7;}
@@ -52,21 +52,23 @@
     .btn-primary { background: linear-gradient(135deg, #2266e3, #174aa1); color: white;}
     .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(34,102,227,0.3);}
     .btn-secondary { background: #6c757d; color: white;}
-    .btn-secondary:hover { background: #5a6268;}
+    .btn-secondary:hover:not(:disabled) { background: #5a6268;}
     .btn-info { background: #17a2b8; color: white;}
-    .btn-info:hover { background: #138496;}
-    button:disabled { background: #ddd; cursor: not-allowed; transform: none;}
+    .btn-info:hover:not(:disabled) { background: #138496;}
+    button:disabled { background: #ddd; cursor: not-allowed; transform: none; opacity: 0.6;}
     .button-row { display: flex; gap: 10px; flex-wrap: wrap;}
     .search-history { background: #e9ecef; border-radius: 8px; padding: 10px; margin: 10px 0; font-size: 14px;}
     .search-history h4 { margin: 0 0 8px 0; color: #495057;}
     .search-item { background: white; padding: 6px 10px; border-radius: 4px; margin: 4px 0; border-left: 3px solid #17a2b8;}
     .limit-notice { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; text-align: center;}
+    .error-notice { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; text-align: center;}
     #chat-box::-webkit-scrollbar { width: 6px;}
     #chat-box::-webkit-scrollbar-track { background: #f1f1f1;}
     #chat-box::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px;}
     #chat-box::-webkit-scrollbar-thumb:hover { background: #a8a8a8;}
-    #auth-section { padding: 24px; text-align: center;}
-    #logout-btn { margin-top: 10px; float: right;}
+    #auth-section { padding: 24px; text-align: center; background: white; border-radius: 12px; max-width: 400px; margin: 50px auto; box-shadow: 0 8px 32px rgba(0,0,0,0.1);}
+    #logout-btn { position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 14px;}
+    .loading { opacity: 0.7; pointer-events: none;}
   </style>
 </head>
 <body>
@@ -125,11 +127,14 @@
     </div>
   </div>
 </div>
+
 <div id="auth-section">
-  <h2>Sign in to Fusion AI Chat</h2>
+  <h2>🤖 Sign in to Fusion AI Chat</h2>
+  <p>Please sign in with your Google account to start chatting</p>
   <button id="google-btn" class="btn-info">Sign in with Google</button>
-  <div id="auth-error" style="color:#c00;font-size:14px;"></div>
+  <div id="auth-error" style="color:#c00;font-size:14px;margin-top:10px;"></div>
 </div>
+
 <script>
   // --- Firebase Setup ---
   const firebaseConfig = {
@@ -142,6 +147,7 @@
     appId: "1:765164293111:web:43e051c755c4690c0c3cf2",
     measurementId: "G-4DT52P7MPB"
   };
+
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.database();
@@ -153,21 +159,37 @@
   const googleBtn = document.getElementById('google-btn');
   const authError = document.getElementById('auth-error');
 
-  function showAuthError(msg) { authError.textContent = msg; }
-  function clearAuthError() { authError.textContent = ""; }
+  function showAuthError(msg) { 
+    authError.textContent = msg; 
+    console.error('Auth error:', msg);
+  }
+  function clearAuthError() { 
+    authError.textContent = ""; 
+  }
 
   googleBtn.onclick = async () => {
     clearAuthError();
+    googleBtn.disabled = true;
+    googleBtn.textContent = 'Signing in...';
     const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('profile');
+    provider.addScope('email');
     try {
       await auth.signInWithPopup(provider);
     } catch (e) {
-      showAuthError(e.message);
+      showAuthError(`Authentication failed: ${e.message}`);
+    } finally {
+      googleBtn.disabled = false;
+      googleBtn.textContent = 'Sign in with Google';
     }
   };
-  logoutBtn.onclick = () => auth.signOut();
 
-  // --- Main Chat App ---
+  logoutBtn.onclick = () => {
+    if (confirm('Are you sure you want to sign out?')) {
+      auth.signOut();
+    }
+  };
+
   let fusionChat = null;
   let userId = null;
 
@@ -177,7 +199,9 @@
       container.style.display = '';
       authSection.style.display = 'none';
       logoutBtn.style.display = '';
-      if (!fusionChat) fusionChat = new FusionAIChat(userId);
+      if (!fusionChat) {
+        fusionChat = new FusionAIChat(userId);
+      }
     } else {
       userId = null;
       container.style.display = 'none';
@@ -208,35 +232,73 @@
       this.firebaseChatRef = db.ref(`users/${this.uid}/chatHistory`);
       this.firebaseUsageRef = db.ref(`users/${this.uid}/usageData`);
       this.firebaseSearchRef = db.ref(`users/${this.uid}/searchHistory`);
-      this.listenToFirebase();
       this.initializeEventListeners();
+      this.listenToFirebase();
       this.updateUsageDisplay();
       this.startUsageResetTimer();
-      // Initial welcome message if none exists
-      this.firebaseChatRef.once('value', snap => {
-        if (!snap.exists()) this.addWelcomeMessage();
-      });
+      this.loadInitialData();
     }
+
+    async loadInitialData() {
+      try {
+        const chatSnapshot = await this.firebaseChatRef.once('value');
+        if (!chatSnapshot.exists() || chatSnapshot.val().length === 0) {
+          this.addWelcomeMessage();
+        }
+        const usageSnapshot = await this.firebaseUsageRef.once('value');
+        if (usageSnapshot.exists()) {
+          this.usageData = usageSnapshot.val();
+          this.updateUsageDisplay();
+        } else {
+          await this.firebaseUsageRef.set(this.usageData);
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      }
+    }
+
     listenToFirebase() {
-      this.firebaseChatRef.on('value', snap => {
-        this.chatHistory = snap.val() ? snap.val() : [];
-        this.renderChatHistory();
+      this.firebaseChatRef.on('value', (snapshot) => {
+        try {
+          this.chatHistory = snapshot.val() || [];
+          this.renderChatHistory();
+        } catch (error) {
+          console.error('Error loading chat history:', error);
+        }
       });
-      this.firebaseUsageRef.on('value', snap => {
-        if (snap.val()) this.usageData = snap.val();
-        this.updateUsageDisplay();
+      this.firebaseUsageRef.on('value', (snapshot) => {
+        try {
+          if (snapshot.exists()) {
+            this.usageData = snapshot.val();
+            this.updateUsageDisplay();
+          }
+        } catch (error) {
+          console.error('Error loading usage data:', error);
+        }
       });
-      this.firebaseSearchRef.on('value', snap => {
-        this.searchHistory = snap.val() ? snap.val() : [];
+      this.firebaseSearchRef.on('value', (snapshot) => {
+        try {
+          this.searchHistory = snapshot.val() || [];
+        } catch (error) {
+          console.error('Error loading search history:', error);
+        }
       });
     }
+
     initializeUsageData() {
       const now = new Date();
       return {
-        messages: { count: 0, resetTime: new Date(now.getTime() + 60 * 60 * 1000).toISOString() },
-        searches: { count: 0, resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString() }
+        messages: { 
+          count: 0, 
+          resetTime: new Date(now.getTime() + 60 * 60 * 1000).toISOString() 
+        },
+        searches: { 
+          count: 0, 
+          resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString() 
+        }
       };
     }
+
     initializeEventListeners() {
       this.sendBtn.addEventListener('click', () => this.sendMessage());
       this.clearHistoryBtn.addEventListener('click', () => this.clearChatHistory());
@@ -249,13 +311,25 @@
           this.sendMessage();
         }
       });
-      this.userInput.addEventListener('input', () => { this.updateSendButtonState(); });
+      this.userInput.addEventListener('input', () => {
+        this.updateSendButtonState();
+      });
+      setTimeout(() => this.userInput.focus(), 500);
     }
+
     updateSendButtonState() {
       const hasText = this.userInput.value.trim() !== '';
       const withinMessageLimit = this.usageData.messages.count < 10;
       this.sendBtn.disabled = !hasText || this.isTyping || !withinMessageLimit;
+      if (!withinMessageLimit) {
+        this.sendBtn.textContent = 'Limit Reached';
+      } else if (this.isTyping) {
+        this.sendBtn.textContent = 'Sending...';
+      } else {
+        this.sendBtn.textContent = 'Send';
+      }
     }
+
     startUsageResetTimer() {
       setInterval(() => {
         const now = new Date();
@@ -271,9 +345,13 @@
           usage.searches.resetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
           changed = true;
         }
-        if (changed) this.firebaseUsageRef.set(usage);
+        if (changed) {
+          this.usageData = usage;
+          this.firebaseUsageRef.set(usage);
+        }
       }, 60000);
     }
+
     updateUsageDisplay() {
       this.messageCountEl.textContent = `${this.usageData.messages.count}/10`;
       this.messageCountEl.className = 'usage-count ' + this.getUsageClass(this.usageData.messages.count, 10);
@@ -282,11 +360,13 @@
       this.webSearchBtn.disabled = this.usageData.searches.count >= 5;
       this.updateSendButtonState();
     }
+
     getUsageClass(current, limit) {
       if (current >= limit) return 'limit';
       if (current >= limit * 0.8) return 'warning';
       return 'normal';
     }
+
     renderChatHistory() {
       this.chatBox.innerHTML = '';
       this.chatHistory.forEach((message, index) => {
@@ -294,6 +374,7 @@
       });
       this.scrollToBottom();
     }
+
     createMessageElement(message, index) {
       const messageDiv = document.createElement('div');
       messageDiv.className = `message ${message.role}`;
@@ -304,18 +385,21 @@
       messageSender.className = 'message-sender';
       messageSender.textContent = message.role === 'user' ? 'You' : 'Fusion AI';
       const messageText = document.createElement('div');
-      messageText.innerHTML = message.html || message.text;
-      if (message.role === 'user') {
-        messageDiv.appendChild(messageSender);
-      }
+      messageText.innerHTML = message.html || this.formatMessage(message.text);
+      messageDiv.appendChild(messageSender);
       messageContent.appendChild(messageText);
       messageDiv.appendChild(messageContent);
-      if (message.role === 'ai') {
-        messageDiv.insertBefore(messageSender, messageContent);
-      }
       this.chatBox.appendChild(messageDiv);
     }
+
+    formatMessage(text) {
+      return text.replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    }
+
     showTypingIndicator() {
+      this.hideTypingIndicator();
       const typingDiv = document.createElement('div');
       typingDiv.className = 'message ai';
       typingDiv.id = 'typing-indicator';
@@ -333,41 +417,53 @@
       this.chatBox.appendChild(typingDiv);
       this.scrollToBottom();
     }
+
     hideTypingIndicator() {
       const typingIndicator = document.getElementById('typing-indicator');
       if (typingIndicator) typingIndicator.remove();
     }
+
     getSelectedModel() {
       const selected = this.modelSelect.value;
       if (selected) return selected;
-      const p = this.personalitySelect.value;
-      if (p === "Friendly") return "openai/gpt-3.5-turbo";
-      if (p === "Professional") return "openai/gpt-4o-mini";
-      if (p === "Humorous") return "anthropic/claude-3-haiku";
-      if (p === "Creative") return "openai/gpt-4o";
-      if (p === "Analytical") return "openai/gpt-4o";
-      return "openai/gpt-3.5-turbo";
+      const personality = this.personalitySelect.value;
+      const modelMap = {
+        "Friendly": "openai/gpt-3.5-turbo",
+        "Professional": "openai/gpt-4o-mini",
+        "Humorous": "anthropic/claude-3-haiku",
+        "Creative": "openai/gpt-4o",
+        "Analytical": "openai/gpt-4o"
+      };
+      return modelMap[personality] || "openai/gpt-3.5-turbo";
     }
+
     getPersonalityPrompt(personality) {
-      if (personality === "Friendly") return "You are a friendly, helpful, and approachable AI assistant.";
-      if (personality === "Professional") return "You are a professional, concise, businesslike AI assistant.";
-      if (personality === "Humorous") return "You are a witty, humorous, and light-hearted AI assistant.";
-      if (personality === "Creative") return "You are a creative, imaginative, and original AI assistant.";
-      if (personality === "Analytical") return "You are an analytical, logical, and precise AI assistant.";
-      return "";
+      const prompts = {
+        "Friendly": "You are a friendly, helpful, and approachable AI assistant. Be warm and conversational.",
+        "Professional": "You are a professional, concise, and businesslike AI assistant. Be direct and efficient.",
+        "Humorous": "You are a witty, humorous, and light-hearted AI assistant. Add some humor when appropriate.",
+        "Creative": "You are a creative, imaginative, and original AI assistant. Think outside the box.",
+        "Analytical": "You are an analytical, logical, and precise AI assistant. Focus on facts and reasoning."
+      };
+      return prompts[personality] || "";
     }
+
     async sendMessage() {
       if (this.usageData.messages.count >= 10) {
-        this.showLimitNotice('You\'ve reached your hourly message limit (10 messages). Please wait for the limit to reset.');
+        this.showNotice('You\'ve reached your hourly message limit (10 messages). Please wait for the limit to reset.', 'error');
         return;
       }
       const userMessage = this.userInput.value.trim();
       if (!userMessage || this.isTyping) return;
       this.usageData.messages.count++;
-      this.firebaseUsageRef.set(this.usageData);
-      const userMessageObj = { role: 'user', text: userMessage, timestamp: new Date().toISOString() };
+      await this.firebaseUsageRef.set(this.usageData);
+      const userMessageObj = {
+        role: 'user',
+        text: userMessage,
+        timestamp: new Date().toISOString()
+      };
       const updatedHistory = [...this.chatHistory, userMessageObj];
-      this.firebaseChatRef.set(updatedHistory);
+      await this.firebaseChatRef.set(updatedHistory);
       this.userInput.value = '';
       this.isTyping = true;
       this.updateSendButtonState();
@@ -375,64 +471,80 @@
       try {
         const aiResponse = await this.callOpenRouterAPI(updatedHistory);
         this.hideTypingIndicator();
-        const aiMessageObj = { role: 'ai', text: aiResponse, timestamp: new Date().toISOString() };
-        this.firebaseChatRef.set([...updatedHistory, aiMessageObj]);
+        const aiMessageObj = {
+          role: 'ai',
+          text: aiResponse,
+          timestamp: new Date().toISOString()
+        };
+        await this.firebaseChatRef.set([...updatedHistory, aiMessageObj]);
       } catch (error) {
         this.hideTypingIndicator();
         const errorMessage = {
           role: 'ai',
-          text: 'Sorry, I encountered an error communicating with the AI service. Please try again.',
+          text: `Sorry, I encountered an error: ${error.message}. Please try again.`,
           timestamp: new Date().toISOString()
         };
-        this.firebaseChatRef.set([...updatedHistory, errorMessage]);
+        await this.firebaseChatRef.set([...updatedHistory, errorMessage]);
       } finally {
         this.isTyping = false;
         this.updateSendButtonState();
         this.userInput.focus();
       }
     }
+
     async callOpenRouterAPI(historyOverride) {
       const selectedModel = this.getSelectedModel();
+      const personality = this.personalitySelect.value;
+      const personalityPrompt = this.getPersonalityPrompt(personality);
       const apiHistory = (historyOverride || this.chatHistory).filter(msg =>
         !(msg.text && msg.text.includes('Hello! I\'m Fusion AI') && msg.role === 'ai')
       );
-      const personality = this.personalitySelect.value;
-      const personalityPrompt = this.getPersonalityPrompt(personality);
       let historyWithContext = [...apiHistory];
       if (apiHistory.length === 1 && personalityPrompt) {
         historyWithContext = [
-          { role: 'ai', text: personalityPrompt },
+          { role: 'system', text: personalityPrompt },
           ...apiHistory
         ];
       }
       const response = await fetch('/api/openrouter', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history: historyWithContext, model: selectedModel }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          history: historyWithContext,
+          model: selectedModel
+        }),
       });
       if (!response.ok) {
         let errorData = {};
-        try { errorData = await response.json(); } catch {}
-        throw new Error(errorData.error || 'API request failed');
+        try { errorData = await response.json(); } catch (e) {}
+        throw new Error(errorData.error || `API request failed (${response.status})`);
       }
       const data = await response.json();
       return data.text || 'Sorry, I could not generate a response.';
     }
+
     async performWebSearch() {
       if (this.usageData.searches.count >= 5) {
-        this.showLimitNotice('You\'ve reached your daily web search limit (5 searches). Please wait until tomorrow.');
+        this.showNotice('You\'ve reached your daily web search limit (5 searches). Please wait until tomorrow.', 'error');
         return;
       }
       const query = prompt('Enter your search query:');
-      if (!query) return;
+      if (!query || !query.trim()) return;
       this.usageData.searches.count++;
-      this.firebaseUsageRef.set(this.usageData);
-      const newSearch = { query: query, timestamp: new Date().toISOString(), results: 'Simulated search results...' };
+      await this.firebaseUsageRef.set(this.usageData);
+      const newSearch = {
+        query: query.trim(),
+        timestamp: new Date().toISOString(),
+        results: 'Search completed'
+      };
       const updatedSearches = [...this.searchHistory, newSearch];
-      this.firebaseSearchRef.set(updatedSearches);
+      await this.firebaseSearchRef.set(updatedSearches);
       this.isTyping = true;
       this.showTypingIndicator();
       try {
+        // To connect to a real search API, replace this block with API fetch.
         await new Promise(resolve => setTimeout(resolve, 2000));
         this.hideTypingIndicator();
         const searchMessage = {
@@ -440,18 +552,19 @@
           text: `Here are the search results for "${query}":\n\n🔍 Found 3 relevant results:\n1. Example Result 1 - Brief description\n2. Example Result 2 - Brief description\n3. Example Result 3 - Brief description\n\nWould you like me to search for something more specific?`,
           timestamp: new Date().toISOString()
         };
-        this.firebaseChatRef.set([...this.chatHistory, searchMessage]);
+        await this.firebaseChatRef.set([...this.chatHistory, searchMessage]);
       } catch (error) {
         this.hideTypingIndicator();
-        this.showLimitNotice('Error performing web search. Please try again later.');
+        this.showNotice('Error performing web search. Please try again later.', 'error');
       } finally {
         this.isTyping = false;
         this.updateSendButtonState();
       }
     }
+
     showSearchHistory() {
       if (this.searchHistory.length === 0) {
-        this.showLimitNotice('No search history available.');
+        this.showNotice('No search history available.', 'error');
         return;
       }
       const historyHtml = this.searchHistory.map(search => {
@@ -466,14 +579,16 @@
       };
       this.firebaseChatRef.set([...this.chatHistory, historyMessage]);
     }
-    showLimitNotice(message) {
+
+    showNotice(message, type='info') {
       const noticeDiv = document.createElement('div');
-      noticeDiv.className = 'limit-notice';
+      noticeDiv.className = type === 'error' ? 'error-notice' : 'limit-notice';
       noticeDiv.textContent = message;
       this.chatBox.appendChild(noticeDiv);
       this.scrollToBottom();
       setTimeout(() => { noticeDiv.remove(); }, 5000);
     }
+
     addWelcomeMessage() {
       const welcomeMessage = {
         role: 'ai',
@@ -482,12 +597,14 @@
       };
       this.firebaseChatRef.set([welcomeMessage]);
     }
+
     clearChatHistory() {
       if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
         this.firebaseChatRef.set([]);
-        setTimeout(() => this.addWelcomeMessage(), 100); // Restore welcome message
+        setTimeout(() => this.addWelcomeMessage(), 100);
       }
     }
+
     exportChatHistory() {
       if (this.chatHistory.length === 0) {
         alert('No chat history to export!');
@@ -509,6 +626,7 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+
     scrollToBottom() {
       setTimeout(() => { this.chatBox.scrollTop = this.chatBox.scrollHeight; }, 100);
     }
