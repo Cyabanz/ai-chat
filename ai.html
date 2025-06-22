@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fusion AI Chat (Google Auth Only)</title>
+  <title>Fusion AI Chat – Multi-Conversation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Firebase Core -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -10,24 +10,65 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <!-- Boxicons CDN -->
+  <!-- Boxicons -->
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh;}
-    #container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden;}
-    .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 20px; text-align: center; position: relative;}
-    .header h1 { margin: 0; font-size: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;}
-    .usage-bar { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e9ecef;}
-    .usage-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;}
-    .usage-item:last-child { margin-bottom: 0;}
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 0; min-height: 100vh;}
+    #main-flex { display: flex; height: 100vh; }
+    #sidebar {
+      width: 250px; min-width: 220px; background: #212c43; color: #fff; padding: 0; display: flex; flex-direction: column; border-right: 1.5px solid #33426b;
+    }
+    #sidebar-header {
+      display: flex; align-items: center; gap: 12px; padding: 22px 16px 14px 18px; font-size: 21px; font-weight: 600; background: #23325B;
+    }
+    #sidebar-header i { font-size: 28px; color: #7cb0ff; }
+    #sidebar-btns { padding: 0 16px 16px 16px; }
+    #new-convo-btn, #logout-btn {
+      width: 100%; margin-bottom: 10px; background: #2a4175; color: #fff; border: none; border-radius: 24px; padding: 12px 0; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+      display: flex; align-items: center; gap: 8px; justify-content: center;
+    }
+    #new-convo-btn:hover { background: #3154a3; }
+    #logout-btn { background: #dd4b39; margin-bottom: 0; }
+    #logout-btn:hover { background: #c23321 }
+    #convo-list {
+      flex: 1;
+      overflow-y: auto;
+      margin: 0; padding: 0;
+      list-style: none;
+      background: #222c48;
+    }
+    .convo-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px; border-bottom: 1px solid #283662; cursor: pointer;
+      background: none; color: #fff; font-size: 15px; transition: background 0.15s;
+      user-select: none;
+      position: relative;
+    }
+    .convo-item.active, .convo-item:hover { background: #273460; }
+    .convo-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+    .convo-actions {
+      display: flex; gap: 0; opacity: 0.7;
+    }
+    .convo-actions button {
+      background: none; border: none; color: #89a9e0; font-size: 17px; padding: 2px 3px; cursor: pointer; border-radius: 2px;
+      transition: background 0.13s;
+    }
+    .convo-actions button:hover { background: #33426b; color: #fff; }
+    #container { flex: 1; display: flex; flex-direction: column; background: #f5f8fd; min-width: 0; }
+    .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 16px 24px 12px 24px; text-align: left; position: relative; display: flex; align-items: center; gap: 12px;}
+    .header i { font-size: 23px; color: #fff; }
+    .header h1 { margin: 0; font-size: 23px; font-weight: 600; }
+    .usage-bar { background: #f8f9fa; padding: 12px 24px; border-bottom: 1px solid #e9ecef; display: flex; gap: 30px;}
+    .usage-item { display: flex; align-items: center; gap: 8px;}
     .usage-label { font-size: 14px; color: #495057; font-weight: 500;}
     .usage-count { font-size: 14px; font-weight: 600; padding: 2px 8px; border-radius: 12px;}
     .usage-count.normal { background: #d4edda; color: #155724;}
     .usage-count.warning { background: #fff3cd; color: #856404;}
     .usage-count.limit { background: #f8d7da; color: #721c24;}
-    .controls { padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;}
-    .controls label { display: block; margin-bottom: 5px; font-weight: 500; color: #495057;}
-    #chat-box { height: 400px; overflow-y: auto; padding: 20px; background: #fff;}
+    .controls { padding: 12px 24px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; display: flex; gap: 30px;}
+    .controls label { display: block; margin-bottom: 2px; font-weight: 500; color: #495057;}
+    .controls select { margin-left: 4px;}
+    #chat-box { flex: 1; overflow-y: auto; padding: 24px; background: #fff;}
     .message { margin: 15px 0; display: flex; align-items: flex-start; animation: messageSlide 0.3s ease-out;}
     @keyframes messageSlide { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);}}
     .message.user { justify-content: flex-end;}
@@ -62,7 +103,7 @@
     .typing-dot:nth-child(2) { animation-delay: -0.16s;}
     .typing-dot:nth-child(3) { animation-delay: 0s;}
     @keyframes typingPulse { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5;} 40% { transform: scale(1); opacity: 1;}}
-    .input-section { padding: 20px; background: #f8f9fa; border-top: 1px solid #e9ecef;}
+    .input-section { padding: 24px; background: #f8f9fa; border-top: 1px solid #e9ecef;}
     .input-row { display: flex; gap: 10px; margin-bottom: 10px;}
     input[type="text"] { flex: 1; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 25px; font-size: 16px; outline: none; transition: border-color 0.3s ease;}
     input[type="text"]:focus { border-color: #2266e3;}
@@ -85,33 +126,49 @@
     #chat-box::-webkit-scrollbar-track { background: #f1f1f1;}
     #chat-box::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px;}
     #chat-box::-webkit-scrollbar-thumb:hover { background: #a8a8a8;}
-    #auth-section { padding: 24px; text-align: center; background: white; border-radius: 12px; max-width: 400px; margin: 50px auto; box-shadow: 0 8px 32px rgba(0,0,0,0.1);}
-    #logout-btn { position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 14px;}
+    #auth-section { padding: 24px; text-align: center; background: white; border-radius: 12px; max-width: 400px; margin: 60px auto; box-shadow: 0 8px 32px rgba(0,0,0,0.1);}
     .loading { opacity: 0.7; pointer-events: none;}
+    @media (max-width: 900px) {
+      #main-flex { flex-direction: column; }
+      #sidebar { width: 100vw; min-width: 0; height: auto; max-height: 250px; }
+      #container { min-width: 0; }
+      #sidebar-header { font-size: 18px; }
+    }
   </style>
 </head>
 <body>
-<div id="container" style="display:none;">
-  <div class="header">
-    <h1>
+<div id="auth-section">
+  <h2><i class='bx bx-bot'></i> Sign in to Fusion AI Chat</h2>
+  <p>Please sign in with your Google account to start chatting</p>
+  <button id="google-btn" class="btn-info"><i class='bx bxl-google'></i> Sign in with Google</button>
+  <div id="auth-error" style="color:#c00;font-size:14px;margin-top:10px;"></div>
+</div>
+<div id="main-flex" style="display:none;">
+  <div id="sidebar">
+    <div id="sidebar-header"><i class='bx bx-chat'></i> Conversations</div>
+    <div id="sidebar-btns">
+      <button id="new-convo-btn"><i class='bx bx-plus'></i> New conversation</button>
+      <button id="logout-btn"><i class='bx bx-log-out'></i> Logout</button>
+    </div>
+    <ul id="convo-list"></ul>
+  </div>
+  <div id="container">
+    <div class="header">
       <i class='bx bx-bot'></i>
-      Fusion AI Chat
-    </h1>
-    <button id="logout-btn" class="btn-secondary" style="display:none;">Logout</button>
-  </div>
-  <div class="usage-bar">
-    <div class="usage-item">
-      <span class="usage-label"><i class='bx bx-message-square-dots'></i> Messages (per hour)</span>
-      <span id="message-count" class="usage-count normal">0/10</span>
+      <h1 id="convo-title">Fusion AI Chat</h1>
     </div>
-    <div class="usage-item">
-      <span class="usage-label"><i class='bx bx-search-alt-2'></i> Web Searches (per day)</span>
-      <span id="search-count" class="usage-count normal">0/5</span>
+    <div class="usage-bar">
+      <div class="usage-item">
+        <span class="usage-label"><i class='bx bx-message-square-dots'></i> Messages (per hour)</span>
+        <span id="message-count" class="usage-count normal">0/10</span>
+      </div>
+      <div class="usage-item">
+        <span class="usage-label"><i class='bx bx-search-alt-2'></i> Web Searches (per day)</span>
+        <span id="search-count" class="usage-count normal">0/5</span>
+      </div>
     </div>
-  </div>
-  <div class="controls">
-    <div style="display: flex; gap: 15px; align-items: center;">
-      <div style="flex: 1;">
+    <div class="controls">
+      <div>
         <label for="personality"><i class='bx bx-user-circle'></i> AI Personality:</label>
         <select id="personality">
           <option value="Friendly">Friendly (GPT-3.5)</option>
@@ -121,7 +178,7 @@
           <option value="Analytical">Analytical (GPT-4o)</option>
         </select>
       </div>
-      <div style="flex: 1;">
+      <div>
         <label for="model-select"><i class='bx bx-chip'></i> Model Override:</label>
         <select id="model-select">
           <option value="">Auto (based on personality)</option>
@@ -134,26 +191,20 @@
         </select>
       </div>
     </div>
-  </div>
-  <div id="chat-box"></div>
-  <div class="input-section">
-    <div class="input-row">
-      <input type="text" id="user-input" placeholder="Type your message here..." maxlength="500">
-      <button id="send-btn" class="btn-primary">Send</button>
+    <div id="chat-box"></div>
+    <div class="input-section">
+      <div class="input-row">
+        <input type="text" id="user-input" placeholder="Type your message here..." maxlength="500">
+        <button id="send-btn" class="btn-primary">Send</button>
+      </div>
+      <div class="button-row">
+        <button id="clear-history" class="btn-secondary"><i class='bx bx-trash'></i> Clear Conversation</button>
+        <button id="export-history" class="btn-secondary"><i class='bx bx-download'></i> Export Conversation</button>
+        <button id="web-search" class="btn-info"><i class='bx bx-search'></i> Web Search</button>
+        <button id="view-search-history" class="btn-info"><i class='bx bx-history'></i> Search History</button>
+      </div>
     </div>
-    <div class="button-row">
-      <button id="clear-history" class="btn-secondary"><i class='bx bx-trash'></i> Clear History</button>
-      <button id="export-history" class="btn-secondary"><i class='bx bx-download'></i> Export Chat</button>
-      <button id="web-search" class="btn-info"><i class='bx bx-search'></i> Web Search</button>
-      <button id="view-search-history" class="btn-info"><i class='bx bx-history'></i> Search History</button>
-    </div>
   </div>
-</div>
-<div id="auth-section">
-  <h2><i class='bx bx-bot'></i> Sign in to Fusion AI Chat</h2>
-  <p>Please sign in with your Google account to start chatting</p>
-  <button id="google-btn" class="btn-info"><i class='bx bxl-google'></i> Sign in with Google</button>
-  <div id="auth-error" style="color:#c00;font-size:14px;margin-top:10px;"></div>
 </div>
 <script>
   // --- Firebase Setup ---
@@ -167,25 +218,19 @@
     appId: "1:765164293111:web:43e051c755c4690c0c3cf2",
     measurementId: "G-4DT52P7MPB"
   };
-
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.database();
 
   // --- Auth UI Logic ---
   const authSection = document.getElementById('auth-section');
-  const container = document.getElementById('container');
+  const mainFlex = document.getElementById('main-flex');
   const logoutBtn = document.getElementById('logout-btn');
   const googleBtn = document.getElementById('google-btn');
   const authError = document.getElementById('auth-error');
 
-  function showAuthError(msg) { 
-    authError.textContent = msg; 
-    console.error('Auth error:', msg);
-  }
-  function clearAuthError() { 
-    authError.textContent = ""; 
-  }
+  function showAuthError(msg) { authError.textContent = msg; }
+  function clearAuthError() { authError.textContent = ""; }
 
   googleBtn.onclick = async () => {
     clearAuthError();
@@ -210,30 +255,42 @@
     }
   };
 
+  // --- Multi-Convo Chat Logic ---
   let fusionChat = null;
   let userId = null;
 
   auth.onAuthStateChanged(user => {
     if (user) {
       userId = user.uid;
-      container.style.display = '';
+      mainFlex.style.display = '';
       authSection.style.display = 'none';
-      logoutBtn.style.display = '';
       if (!fusionChat) {
         fusionChat = new FusionAIChat(userId);
       }
     } else {
       userId = null;
-      container.style.display = 'none';
+      mainFlex.style.display = 'none';
       authSection.style.display = '';
-      logoutBtn.style.display = 'none';
       fusionChat = null;
     }
   });
 
+  function uuid() {
+    // Simple uuid for Firebase keys
+    return 'xxyxxyxxxyx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    }) + Date.now();
+  }
+
   class FusionAIChat {
     constructor(uid) {
       this.uid = uid;
+      // Sidebar elements
+      this.convoListEl = document.getElementById('convo-list');
+      this.newConvoBtn = document.getElementById('new-convo-btn');
+      this.logoutBtn = document.getElementById('logout-btn');
+      // Main chat elements
       this.chatBox = document.getElementById('chat-box');
       this.userInput = document.getElementById('user-input');
       this.sendBtn = document.getElementById('send-btn');
@@ -245,84 +302,29 @@
       this.modelSelect = document.getElementById('model-select');
       this.messageCountEl = document.getElementById('message-count');
       this.searchCountEl = document.getElementById('search-count');
-      this.chatHistory = [];
+      this.convoTitle = document.getElementById('convo-title');
+      // Data
+      this.conversations = {}; // { id: {meta, messages: []}}
+      this.activeConvoId = null;
       this.usageData = this.initializeUsageData();
       this.searchHistory = [];
       this.isTyping = false;
-      this.firebaseChatRef = db.ref(`users/${this.uid}/chatHistory`);
+      // Firebase refs
+      this.firebaseConvoListRef = db.ref(`users/${this.uid}/conversations`);
       this.firebaseUsageRef = db.ref(`users/${this.uid}/usageData`);
       this.firebaseSearchRef = db.ref(`users/${this.uid}/searchHistory`);
+      // Listeners/UI
       this.initializeEventListeners();
       this.listenToFirebase();
       this.updateUsageDisplay();
       this.startUsageResetTimer();
-      this.loadInitialData();
-    }
-
-    async loadInitialData() {
-      try {
-        const chatSnapshot = await this.firebaseChatRef.once('value');
-        if (!chatSnapshot.exists() || chatSnapshot.val().length === 0) {
-          this.addWelcomeMessage();
-        }
-        const usageSnapshot = await this.firebaseUsageRef.once('value');
-        if (usageSnapshot.exists()) {
-          this.usageData = usageSnapshot.val();
-          this.updateUsageDisplay();
-        } else {
-          await this.firebaseUsageRef.set(this.usageData);
-        }
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-      }
-    }
-
-    listenToFirebase() {
-      this.firebaseChatRef.on('value', (snapshot) => {
-        try {
-          this.chatHistory = snapshot.val() || [];
-          this.renderChatHistory();
-        } catch (error) {
-          console.error('Error loading chat history:', error);
-        }
-      });
-      this.firebaseUsageRef.on('value', (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            this.usageData = snapshot.val();
-            this.updateUsageDisplay();
-          }
-        } catch (error) {
-          console.error('Error loading usage data:', error);
-        }
-      });
-      this.firebaseSearchRef.on('value', (snapshot) => {
-        try {
-          this.searchHistory = snapshot.val() || [];
-        } catch (error) {
-          console.error('Error loading search history:', error);
-        }
-      });
-    }
-
-    initializeUsageData() {
-      const now = new Date();
-      return {
-        messages: { 
-          count: 0, 
-          resetTime: new Date(now.getTime() + 60 * 60 * 1000).toISOString() 
-        },
-        searches: { 
-          count: 0, 
-          resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString() 
-        }
-      };
     }
 
     initializeEventListeners() {
+      this.newConvoBtn.addEventListener('click', () => this.createNewConversation());
       this.sendBtn.addEventListener('click', () => this.sendMessage());
-      this.clearHistoryBtn.addEventListener('click', () => this.clearChatHistory());
-      this.exportHistoryBtn.addEventListener('click', () => this.exportChatHistory());
+      this.clearHistoryBtn.addEventListener('click', () => this.clearConversation());
+      this.exportHistoryBtn.addEventListener('click', () => this.exportConversation());
       this.webSearchBtn.addEventListener('click', () => this.performWebSearch());
       this.viewSearchHistoryBtn.addEventListener('click', () => this.showSearchHistory());
       this.userInput.addEventListener('keypress', (e) => {
@@ -331,23 +333,40 @@
           this.sendMessage();
         }
       });
-      this.userInput.addEventListener('input', () => {
-        this.updateSendButtonState();
-      });
+      this.userInput.addEventListener('input', () => this.updateSendButtonState());
       setTimeout(() => this.userInput.focus(), 500);
     }
 
-    updateSendButtonState() {
-      const hasText = this.userInput.value.trim() !== '';
-      const withinMessageLimit = this.usageData.messages.count < 10;
-      this.sendBtn.disabled = !hasText || this.isTyping || !withinMessageLimit;
-      if (!withinMessageLimit) {
-        this.sendBtn.textContent = 'Limit Reached';
-      } else if (this.isTyping) {
-        this.sendBtn.textContent = 'Sending...';
-      } else {
-        this.sendBtn.textContent = 'Send';
-      }
+    listenToFirebase() {
+      this.firebaseConvoListRef.on('value', (snapshot) => {
+        this.conversations = snapshot.val() || {};
+        this.renderSidebar();
+        // If no active convo, pick the first available
+        if (!this.activeConvoId && Object.keys(this.conversations).length > 0) {
+          this.setActiveConversation(Object.keys(this.conversations)[0]);
+        }
+        // If no conversations at all, create one
+        if (Object.keys(this.conversations).length === 0) {
+          this.createNewConversation();
+        }
+      });
+      this.firebaseUsageRef.on('value', (snapshot) => {
+        if (snapshot.exists()) {
+          this.usageData = snapshot.val();
+          this.updateUsageDisplay();
+        }
+      });
+      this.firebaseSearchRef.on('value', (snapshot) => {
+        this.searchHistory = snapshot.val() || [];
+      });
+    }
+
+    initializeUsageData() {
+      const now = new Date();
+      return {
+        messages: { count: 0, resetTime: new Date(now.getTime() + 60 * 60 * 1000).toISOString() },
+        searches: { count: 0, resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString() }
+      };
     }
 
     startUsageResetTimer() {
@@ -387,9 +406,94 @@
       return 'normal';
     }
 
+    renderSidebar() {
+      this.convoListEl.innerHTML = '';
+      const ids = Object.keys(this.conversations);
+      if (ids.length === 0) return;
+      ids.sort((a, b) => {
+        // Most recent first
+        const aTime = this.conversations[a].meta && this.conversations[a].meta.lastUpdated
+          ? this.conversations[a].meta.lastUpdated : 0;
+        const bTime = this.conversations[b].meta && this.conversations[b].meta.lastUpdated
+          ? this.conversations[b].meta.lastUpdated : 0;
+        return bTime - aTime;
+      });
+      ids.forEach(convoId => {
+        const convo = this.conversations[convoId];
+        const li = document.createElement('li');
+        li.className = 'convo-item' + (convoId === this.activeConvoId ? ' active' : '');
+        li.dataset.id = convoId;
+        const title = document.createElement('span');
+        title.className = 'convo-title';
+        title.textContent = (convo.meta && convo.meta.title) ? convo.meta.title : 'Conversation';
+        li.appendChild(title);
+
+        // Delete button
+        const actions = document.createElement('span');
+        actions.className = 'convo-actions';
+        const delBtn = document.createElement('button');
+        delBtn.title = 'Delete';
+        delBtn.innerHTML = "<i class='bx bx-trash'></i>";
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (confirm('Delete this conversation?')) {
+            this.deleteConversation(convoId);
+          }
+        };
+        actions.appendChild(delBtn);
+        li.appendChild(actions);
+        li.onclick = () => this.setActiveConversation(convoId);
+        this.convoListEl.appendChild(li);
+      });
+    }
+
+    setActiveConversation(convoId) {
+      if (!this.conversations[convoId]) return;
+      this.activeConvoId = convoId;
+      this.renderSidebar();
+      this.renderChatHistory();
+      // Set title
+      this.convoTitle.textContent = this.conversations[convoId].meta && this.conversations[convoId].meta.title
+        ? this.conversations[convoId].meta.title : 'Conversation';
+    }
+
+    createNewConversation() {
+      const id = uuid();
+      const now = Date.now();
+      const welcomeMsg = {
+        role: 'ai',
+        text: "Hello! I'm Fusion AI. Start chatting or asking questions. You can create and switch conversations using the sidebar.",
+        timestamp: new Date().toISOString()
+      };
+      const meta = {
+        created: now,
+        lastUpdated: now,
+        title: "New conversation"
+      };
+      this.firebaseConvoListRef.child(id).set({meta, messages: [welcomeMsg]}, () => {
+        this.setActiveConversation(id);
+      });
+    }
+
+    deleteConversation(convoId) {
+      this.firebaseConvoListRef.child(convoId).remove(() => {
+        if (this.activeConvoId === convoId) {
+          // Switch to another conversation or new
+          const ids = Object.keys(this.conversations).filter(id => id !== convoId);
+          if (ids.length > 0) {
+            this.setActiveConversation(ids[0]);
+          } else {
+            this.createNewConversation();
+          }
+        }
+      });
+    }
+
     renderChatHistory() {
       this.chatBox.innerHTML = '';
-      this.chatHistory.forEach((message, index) => {
+      if (!this.activeConvoId || !this.conversations[this.activeConvoId]) return;
+      const messages = this.conversations[this.activeConvoId].messages || [];
+      messages.forEach((message, index) => {
         this.createMessageElement(message, index);
       });
       this.scrollToBottom();
@@ -400,15 +504,13 @@
       messageDiv.className = `message ${message.role}`;
       messageDiv.dataset.messageIndex = index;
 
-      // Row for profile circle and name
       const senderRow = document.createElement('div');
       senderRow.className = 'message-sender-row';
 
-      // Profile circle: Only AI gets an avatar for now (user can get one if needed)
       if (message.role === 'ai') {
         const aiProfile = document.createElement('div');
         aiProfile.className = 'profile-circle-ai';
-        aiProfile.innerHTML = "<i class='bx bx-bot'></i>"; // Copilot-style
+        aiProfile.innerHTML = "<i class='bx bx-bot'></i>";
         senderRow.appendChild(aiProfile);
       } else {
         const userProfile = document.createElement('div');
@@ -417,13 +519,11 @@
         senderRow.appendChild(userProfile);
       }
 
-      // Message sender name
       const messageSender = document.createElement('div');
       messageSender.className = 'message-sender';
       messageSender.textContent = (message.role === 'user' ? "You" : "Fusion AI");
       senderRow.appendChild(messageSender);
 
-      // Message content
       const messageContent = document.createElement('div');
       messageContent.className = 'message-content';
       const messageText = document.createElement('div');
@@ -431,7 +531,6 @@
 
       messageContent.appendChild(messageText);
 
-      // Layout: sender row above content for both user and AI
       messageDiv.appendChild(senderRow);
       messageDiv.appendChild(messageContent);
 
@@ -508,6 +607,7 @@
     }
 
     async sendMessage() {
+      if (!this.activeConvoId) return;
       if (this.usageData.messages.count >= 10) {
         this.showNotice('You\'ve reached your hourly message limit (10 messages). Please wait for the limit to reset.', 'error');
         return;
@@ -516,26 +616,36 @@
       if (!userMessage || this.isTyping) return;
       this.usageData.messages.count++;
       await this.firebaseUsageRef.set(this.usageData);
-      const userMessageObj = {
+
+      // Append user message to messages array
+      const convoRef = this.firebaseConvoListRef.child(this.activeConvoId);
+      const convo = this.conversations[this.activeConvoId] || {meta: {}, messages: []};
+      const messages = (convo.messages || []).concat([{
         role: 'user',
         text: userMessage,
         timestamp: new Date().toISOString()
+      }]);
+      const meta = {
+        ...convo.meta,
+        lastUpdated: Date.now(),
+        title: (convo.meta && convo.meta.title && convo.meta.title !== 'New conversation')
+          ? convo.meta.title
+          : this.suggestTitleForConversation(messages)
       };
-      const updatedHistory = [...this.chatHistory, userMessageObj];
-      await this.firebaseChatRef.set(updatedHistory);
+      await convoRef.set({meta, messages});
       this.userInput.value = '';
       this.isTyping = true;
       this.updateSendButtonState();
       this.showTypingIndicator();
       try {
-        const aiResponse = await this.callOpenRouterAPI(updatedHistory);
+        const aiResponse = await this.callOpenRouterAPI(messages);
         this.hideTypingIndicator();
-        const aiMessageObj = {
+        const newMessages = messages.concat([{
           role: 'ai',
           text: aiResponse,
           timestamp: new Date().toISOString()
-        };
-        await this.firebaseChatRef.set([...updatedHistory, aiMessageObj]);
+        }]);
+        await convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: newMessages});
       } catch (error) {
         this.hideTypingIndicator();
         const errorMessage = {
@@ -543,7 +653,7 @@
           text: `Sorry, I encountered an error: ${error.message}. Please try again.`,
           timestamp: new Date().toISOString()
         };
-        await this.firebaseChatRef.set([...updatedHistory, errorMessage]);
+        await convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: messages.concat([errorMessage])});
       } finally {
         this.isTyping = false;
         this.updateSendButtonState();
@@ -551,11 +661,22 @@
       }
     }
 
+    suggestTitleForConversation(messages) {
+      // Use first user message as title if possible, else fallback
+      const firstUser = messages.find(m => m.role === "user");
+      if (firstUser && firstUser.text) {
+        let s = firstUser.text.trim();
+        if (s.length > 32) s = s.slice(0, 32) + '…';
+        return s;
+      }
+      return "Conversation";
+    }
+
     async callOpenRouterAPI(historyOverride) {
       const selectedModel = this.getSelectedModel();
       const personality = this.personalitySelect.value;
       const personalityPrompt = this.getPersonalityPrompt(personality);
-      const apiHistory = (historyOverride || this.chatHistory).filter(msg =>
+      const apiHistory = (historyOverride || []).filter(msg =>
         !(msg.text && msg.text.includes('Hello! I\'m Fusion AI') && msg.role === 'ai')
       );
       let historyWithContext = [...apiHistory];
@@ -610,7 +731,7 @@
           text: `Here are the search results for "${query}":<br><br>🔍 Found 3 relevant results:<br>1. Example Result 1 - Brief description<br>2. Example Result 2 - Brief description<br>3. Example Result 3 - Brief description<br><br>Would you like me to search for something more specific?`,
           timestamp: new Date().toISOString()
         };
-        await this.firebaseChatRef.set([...this.chatHistory, searchMessage]);
+        await this.appendMessageToActiveConvo(searchMessage);
       } catch (error) {
         this.hideTypingIndicator();
         this.showNotice('Error performing web search. Please try again later.', 'error');
@@ -618,6 +739,15 @@
         this.isTyping = false;
         this.updateSendButtonState();
       }
+    }
+
+    async appendMessageToActiveConvo(message) {
+      if (!this.activeConvoId) return;
+      const convoRef = this.firebaseConvoListRef.child(this.activeConvoId);
+      const convo = this.conversations[this.activeConvoId] || {meta: {}, messages: []};
+      const messages = (convo.messages || []).concat([message]);
+      const meta = {...convo.meta, lastUpdated: Date.now()};
+      await convoRef.set({meta, messages});
     }
 
     showSearchHistory() {
@@ -635,7 +765,7 @@
         html: `<div class="search-history"><h4><i class='bx bx-history'></i> Your Search History</h4>${historyHtml}</div>`,
         timestamp: new Date().toISOString()
       };
-      this.firebaseChatRef.set([...this.chatHistory, historyMessage]);
+      this.appendMessageToActiveConvo(historyMessage);
     }
 
     showNotice(message, type='info') {
@@ -647,28 +777,33 @@
       setTimeout(() => { noticeDiv.remove(); }, 5000);
     }
 
-    addWelcomeMessage() {
-      const welcomeMessage = {
-        role: 'ai',
-        text: 'Hello! I\'m Fusion AI. I can chat with you (10 messages per hour) and search the web (5 times per day). How can I help you today?',
-        timestamp: new Date().toISOString()
-      };
-      this.firebaseChatRef.set([welcomeMessage]);
-    }
-
-    clearChatHistory() {
-      if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
-        this.firebaseChatRef.set([]);
-        setTimeout(() => this.addWelcomeMessage(), 100);
+    clearConversation() {
+      if (!this.activeConvoId) return;
+      if (confirm('Are you sure you want to clear this conversation history? This action cannot be undone.')) {
+        const meta = {
+          ...this.conversations[this.activeConvoId].meta,
+          lastUpdated: Date.now()
+        };
+        const welcomeMessage = {
+          role: 'ai',
+          text: "Hello! I'm Fusion AI. Start chatting or asking questions. You can create and switch conversations using the sidebar.",
+          timestamp: new Date().toISOString()
+        };
+        this.firebaseConvoListRef.child(this.activeConvoId).set({meta, messages: [welcomeMessage]});
       }
     }
 
-    exportChatHistory() {
-      if (this.chatHistory.length === 0) {
-        alert('No chat history to export!');
+    exportConversation() {
+      if (!this.activeConvoId || !this.conversations[this.activeConvoId]) {
+        alert('No conversation to export!');
         return;
       }
-      const chatText = this.chatHistory.map(message => {
+      const messages = this.conversations[this.activeConvoId].messages || [];
+      if (messages.length === 0) {
+        alert('No conversation to export!');
+        return;
+      }
+      const chatText = messages.map(message => {
         const sender = message.role === 'user' ? 'You' : 'Fusion AI';
         const timestamp = new Date(message.timestamp).toLocaleString();
         return `[${timestamp}] ${sender}: ${message.text}`;
@@ -678,11 +813,24 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fusion-ai-chat-${new Date().toISOString().split('T')[0]}.txt`;
+      a.download = `fusion-ai-convo-${this.activeConvoId}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    }
+
+    updateSendButtonState() {
+      const hasText = this.userInput.value.trim() !== '';
+      const withinMessageLimit = this.usageData.messages.count < 10;
+      this.sendBtn.disabled = !hasText || this.isTyping || !withinMessageLimit;
+      if (!withinMessageLimit) {
+        this.sendBtn.textContent = 'Limit Reached';
+      } else if (this.isTyping) {
+        this.sendBtn.textContent = 'Sending...';
+      } else {
+        this.sendBtn.textContent = 'Send';
+      }
     }
 
     scrollToBottom() {
