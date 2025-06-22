@@ -11,7 +11,6 @@
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style>
-    * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh;}
     #container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden;}
     .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 20px; text-align: center; position: relative;}
@@ -127,14 +126,12 @@
     </div>
   </div>
 </div>
-
 <div id="auth-section">
   <h2>🤖 Sign in to Fusion AI Chat</h2>
   <p>Please sign in with your Google account to start chatting</p>
   <button id="google-btn" class="btn-info">Sign in with Google</button>
   <div id="auth-error" style="color:#c00;font-size:14px;margin-top:10px;"></div>
 </div>
-
 <script>
   // --- Firebase Setup ---
   const firebaseConfig = {
@@ -393,7 +390,7 @@
     }
 
     formatMessage(text) {
-      return text.replace(/\n/g, '<br>')
+      return (text || '').replace(/\n/g, '<br>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>');
     }
