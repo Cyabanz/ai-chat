@@ -349,6 +349,10 @@
         if (Object.keys(this.conversations).length === 0) {
           this.createNewConversation();
         }
+        // After updating conversations, re-render chat window for active convo
+        if (this.activeConvoId && this.conversations[this.activeConvoId]) {
+          this.renderChatHistory();
+        }
       });
       this.firebaseUsageRef.on('value', (snapshot) => {
         if (snapshot.exists()) {
@@ -606,7 +610,7 @@
       return prompts[personality] || "";
     }
 
-    async sendMessage() {
+    sendMessage() {
       if (!this.activeConvoId) return;
       if (this.usageData.messages.count >= 10) {
         this.showNotice('You\'ve reached your hourly message limit (10 messages). Please wait for the limit to reset.', 'error');
@@ -615,37 +619,46 @@
       const userMessage = this.userInput.value.trim();
       if (!userMessage || this.isTyping) return;
       this.usageData.messages.count++;
-      await this.firebaseUsageRef.set(this.usageData);
+      this.firebaseUsageRef.set(this.usageData);
 
-      // Append user message to messages array (get latest snapshot before writing)
       const convoRef = this.firebaseConvoListRef.child(this.activeConvoId);
-      convoRef.once('value', (snapshot) => {
-        const convo = snapshot.val() || {meta: {}, messages: []};
-        const messages = (convo.messages || []).concat([{
+
+      // Get latest, add message locally (show instantly), then push to Firebase
+      const addAndSend = (convo) => {
+        const messages = (convo.messages || []);
+        const newMsg = {
           role: 'user',
           text: userMessage,
           timestamp: new Date().toISOString()
-        }]);
+        };
+        // Optimistically update local state/UI
+        if (!this.conversations[this.activeConvoId])
+          this.conversations[this.activeConvoId] = { meta: {}, messages: [] };
+        this.conversations[this.activeConvoId].messages = [...messages, newMsg];
+        this.renderChatHistory();
+
+        this.userInput.value = '';
+        this.isTyping = true;
+        this.updateSendButtonState();
+        this.showTypingIndicator();
+
+        // Update Firebase
         const meta = {
           ...convo.meta,
           lastUpdated: Date.now(),
           title: (convo.meta && convo.meta.title && convo.meta.title !== 'New conversation')
             ? convo.meta.title
-            : this.suggestTitleForConversation(messages)
+            : this.suggestTitleForConversation([...messages, newMsg])
         };
-        convoRef.set({meta, messages}).then(async () => {
-          this.userInput.value = '';
-          this.isTyping = true;
-          this.updateSendButtonState();
-          this.showTypingIndicator();
+        convoRef.set({meta, messages: [...messages, newMsg]}).then(async () => {
           try {
-            const aiResponse = await this.callOpenRouterAPI(messages);
+            const aiResponse = await this.callOpenRouterAPI([...messages, newMsg]);
             this.hideTypingIndicator();
-            const newMessages = messages.concat([{
+            const newMessages = [...messages, newMsg, {
               role: 'ai',
               text: aiResponse,
               timestamp: new Date().toISOString()
-            }]);
+            }];
             convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: newMessages});
           } catch (error) {
             this.hideTypingIndicator();
@@ -654,13 +667,17 @@
               text: `Sorry, I encountered an error: ${error.message}. Please try again.`,
               timestamp: new Date().toISOString()
             };
-            convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: messages.concat([errorMessage])});
+            convoRef.set({meta: {...meta, lastUpdated: Date.now()}, messages: [...messages, newMsg, errorMessage]});
           } finally {
             this.isTyping = false;
             this.updateSendButtonState();
             this.userInput.focus();
           }
         });
+      };
+
+      convoRef.once('value', (snapshot) => {
+        addAndSend(snapshot.val() || {meta: {}, messages: []});
       });
     }
 
