@@ -10,11 +10,13 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <!-- Boxicons CDN -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh;}
     #container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden;}
     .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 20px; text-align: center; position: relative;}
-    .header h1 { margin: 0; font-size: 24px; font-weight: 600;}
+    .header h1 { margin: 0; font-size: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;}
     .usage-bar { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e9ecef;}
     .usage-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;}
     .usage-item:last-child { margin-bottom: 0;}
@@ -29,10 +31,28 @@
     .message { margin: 15px 0; display: flex; align-items: flex-start; animation: messageSlide 0.3s ease-out;}
     @keyframes messageSlide { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);}}
     .message.user { justify-content: flex-end;}
+    .message.ai { align-items: flex-start; }
     .message-content { max-width: 80%; padding: 12px 16px; border-radius: 18px; position: relative; word-wrap: break-word;}
     .message.user .message-content { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; border-bottom-right-radius: 6px;}
     .message.ai .message-content { background: #f1f3f4; color: #333; border-bottom-left-radius: 6px;}
-    .message-sender { font-size: 12px; font-weight: 600; margin-bottom: 4px; opacity: 0.7;}
+    .message-sender-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px;}
+    .profile-circle-ai {
+      width: 30px; height: 30px;
+      border-radius: 50%; background: #e4ebfa;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 1px 5px rgba(34,102,227,0.08);
+      border: 1.5px solid #b5c6f6;
+      font-size: 22px; color: #2266e3;
+    }
+    .profile-circle-user {
+      width: 30px; height: 30px;
+      border-radius: 50%; background: #e0f7fa;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 1px 5px rgba(34,102,227,0.08);
+      border: 1.5px solid #b5eaf6;
+      font-size: 22px; color: #174aa1;
+    }
+    .message-sender { font-size: 12px; font-weight: 600; opacity: 0.7;}
     .message.user .message-sender { text-align: right; color: #2266e3;}
     .message.ai .message-sender { color: #666;}
     .typing-indicator { display: flex; align-items: center; padding: 12px 16px; background: #f1f3f4; border-radius: 18px; border-bottom-left-radius: 6px; max-width: 80px;}
@@ -73,33 +93,36 @@
 <body>
 <div id="container" style="display:none;">
   <div class="header">
-    <h1>🤖 Fusion AI Chat</h1>
+    <h1>
+      <i class='bx bx-bot'></i>
+      Fusion AI Chat
+    </h1>
     <button id="logout-btn" class="btn-secondary" style="display:none;">Logout</button>
   </div>
   <div class="usage-bar">
     <div class="usage-item">
-      <span class="usage-label">💬 Messages (per hour)</span>
+      <span class="usage-label"><i class='bx bx-message-square-dots'></i> Messages (per hour)</span>
       <span id="message-count" class="usage-count normal">0/10</span>
     </div>
     <div class="usage-item">
-      <span class="usage-label">🔍 Web Searches (per day)</span>
+      <span class="usage-label"><i class='bx bx-search-alt-2'></i> Web Searches (per day)</span>
       <span id="search-count" class="usage-count normal">0/5</span>
     </div>
   </div>
   <div class="controls">
     <div style="display: flex; gap: 15px; align-items: center;">
       <div style="flex: 1;">
-        <label for="personality">AI Personality:</label>
+        <label for="personality"><i class='bx bx-user-circle'></i> AI Personality:</label>
         <select id="personality">
-          <option value="Friendly">😊 Friendly (GPT-3.5)</option>
-          <option value="Professional">💼 Professional (GPT-4o Mini)</option>
-          <option value="Humorous">😄 Humorous (Claude-3 Haiku)</option>
-          <option value="Creative">🎨 Creative (GPT-4o)</option>
-          <option value="Analytical">🔬 Analytical (GPT-4o)</option>
+          <option value="Friendly">Friendly (GPT-3.5)</option>
+          <option value="Professional">Professional (GPT-4o Mini)</option>
+          <option value="Humorous">Humorous (Claude-3 Haiku)</option>
+          <option value="Creative">Creative (GPT-4o)</option>
+          <option value="Analytical">Analytical (GPT-4o)</option>
         </select>
       </div>
       <div style="flex: 1;">
-        <label for="model-select">Model Override:</label>
+        <label for="model-select"><i class='bx bx-chip'></i> Model Override:</label>
         <select id="model-select">
           <option value="">Auto (based on personality)</option>
           <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
@@ -119,17 +142,17 @@
       <button id="send-btn" class="btn-primary">Send</button>
     </div>
     <div class="button-row">
-      <button id="clear-history" class="btn-secondary">Clear History</button>
-      <button id="export-history" class="btn-secondary">Export Chat</button>
-      <button id="web-search" class="btn-info">🔍 Web Search</button>
-      <button id="view-search-history" class="btn-info">Search History</button>
+      <button id="clear-history" class="btn-secondary"><i class='bx bx-trash'></i> Clear History</button>
+      <button id="export-history" class="btn-secondary"><i class='bx bx-download'></i> Export Chat</button>
+      <button id="web-search" class="btn-info"><i class='bx bx-search'></i> Web Search</button>
+      <button id="view-search-history" class="btn-info"><i class='bx bx-history'></i> Search History</button>
     </div>
   </div>
 </div>
 <div id="auth-section">
-  <h2>🤖 Sign in to Fusion AI Chat</h2>
+  <h2><i class='bx bx-bot'></i> Sign in to Fusion AI Chat</h2>
   <p>Please sign in with your Google account to start chatting</p>
-  <button id="google-btn" class="btn-info">Sign in with Google</button>
+  <button id="google-btn" class="btn-info"><i class='bx bxl-google'></i> Sign in with Google</button>
   <div id="auth-error" style="color:#c00;font-size:14px;margin-top:10px;"></div>
 </div>
 <script>
@@ -167,7 +190,7 @@
   googleBtn.onclick = async () => {
     clearAuthError();
     googleBtn.disabled = true;
-    googleBtn.textContent = 'Signing in...';
+    googleBtn.innerHTML = "<i class='bx bxs-hourglass bx-spin'></i> Signing in...";
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('profile');
     provider.addScope('email');
@@ -177,7 +200,7 @@
       showAuthError(`Authentication failed: ${e.message}`);
     } finally {
       googleBtn.disabled = false;
-      googleBtn.textContent = 'Sign in with Google';
+      googleBtn.innerHTML = "<i class='bx bxl-google'></i> Sign in with Google";
     }
   };
 
@@ -376,16 +399,42 @@
       const messageDiv = document.createElement('div');
       messageDiv.className = `message ${message.role}`;
       messageDiv.dataset.messageIndex = index;
-      const messageContent = document.createElement('div');
-      messageContent.className = 'message-content';
+
+      // Row for profile circle and name
+      const senderRow = document.createElement('div');
+      senderRow.className = 'message-sender-row';
+
+      // Profile circle: Only AI gets an avatar for now (user can get one if needed)
+      if (message.role === 'ai') {
+        const aiProfile = document.createElement('div');
+        aiProfile.className = 'profile-circle-ai';
+        aiProfile.innerHTML = "<i class='bx bx-bot'></i>"; // Copilot-style
+        senderRow.appendChild(aiProfile);
+      } else {
+        const userProfile = document.createElement('div');
+        userProfile.className = 'profile-circle-user';
+        userProfile.innerHTML = "<i class='bx bx-user'></i>";
+        senderRow.appendChild(userProfile);
+      }
+
+      // Message sender name
       const messageSender = document.createElement('div');
       messageSender.className = 'message-sender';
-      messageSender.textContent = message.role === 'user' ? 'You' : 'Fusion AI';
+      messageSender.textContent = (message.role === 'user' ? "You" : "Fusion AI");
+      senderRow.appendChild(messageSender);
+
+      // Message content
+      const messageContent = document.createElement('div');
+      messageContent.className = 'message-content';
       const messageText = document.createElement('div');
       messageText.innerHTML = message.html || this.formatMessage(message.text);
-      messageDiv.appendChild(messageSender);
+
       messageContent.appendChild(messageText);
+
+      // Layout: sender row above content for both user and AI
+      messageDiv.appendChild(senderRow);
       messageDiv.appendChild(messageContent);
+
       this.chatBox.appendChild(messageDiv);
     }
 
@@ -400,6 +449,19 @@
       const typingDiv = document.createElement('div');
       typingDiv.className = 'message ai';
       typingDiv.id = 'typing-indicator';
+
+      const senderRow = document.createElement('div');
+      senderRow.className = 'message-sender-row';
+      const aiProfile = document.createElement('div');
+      aiProfile.className = 'profile-circle-ai';
+      aiProfile.innerHTML = "<i class='bx bx-bot'></i>";
+      senderRow.appendChild(aiProfile);
+      const messageSender = document.createElement('div');
+      messageSender.className = 'message-sender';
+      messageSender.textContent = 'Fusion AI';
+      senderRow.appendChild(messageSender);
+      typingDiv.appendChild(senderRow);
+
       const typingContent = document.createElement('div');
       typingContent.className = 'typing-indicator';
       const typingDots = document.createElement('div');
@@ -541,12 +603,11 @@
       this.isTyping = true;
       this.showTypingIndicator();
       try {
-        // To connect to a real search API, replace this block with API fetch.
         await new Promise(resolve => setTimeout(resolve, 2000));
         this.hideTypingIndicator();
         const searchMessage = {
           role: 'ai',
-          text: `Here are the search results for "${query}":\n\n🔍 Found 3 relevant results:\n1. Example Result 1 - Brief description\n2. Example Result 2 - Brief description\n3. Example Result 3 - Brief description\n\nWould you like me to search for something more specific?`,
+          text: `Here are the search results for "${query}":<br><br>🔍 Found 3 relevant results:<br>1. Example Result 1 - Brief description<br>2. Example Result 2 - Brief description<br>3. Example Result 3 - Brief description<br><br>Would you like me to search for something more specific?`,
           timestamp: new Date().toISOString()
         };
         await this.firebaseChatRef.set([...this.chatHistory, searchMessage]);
@@ -571,7 +632,7 @@
       const historyMessage = {
         role: 'ai',
         text: 'Search History',
-        html: `<div class="search-history"><h4>🔍 Your Search History</h4>${historyHtml}</div>`,
+        html: `<div class="search-history"><h4><i class='bx bx-history'></i> Your Search History</h4>${historyHtml}</div>`,
         timestamp: new Date().toISOString()
       };
       this.firebaseChatRef.set([...this.chatHistory, historyMessage]);
