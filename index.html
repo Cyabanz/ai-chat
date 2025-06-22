@@ -2,314 +2,590 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chat with AI (Multi-Model)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fusion AI Chat</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: system-ui, sans-serif;
-      background: #f8f8f8;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      padding: 20px;
+      min-height: 100vh;
     }
-    .chat-container {
-      flex: 1 1 auto;
-      display: flex;
-      flex-direction: column;
-      max-width: 600px;
-      margin: 40px auto 0 auto;
+    
+    #container {
+      max-width: 700px;
+      margin: 0 auto;
       background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.06);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       overflow: hidden;
-      height: 80vh;
     }
-    .chat-history {
-      flex: 1 1 auto;
-      padding: 16px;
+    
+    .header {
+      background: linear-gradient(135deg, #2266e3, #174aa1);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .controls {
+      padding: 15px 20px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .controls label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #495057;
+    }
+    
+    #chat-box {
+      height: 400px;
       overflow-y: auto;
-      background: #fafafa;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .msg {
-      display: flex;
-      flex-direction: column;
-      max-width: 80%;
-    }
-    .msg.user {
-      align-self: flex-end;
-      background: #e6f7fa;
-      border-radius: 14px 14px 2px 14px;
-      padding: 8px 12px;
-      margin-left: 20%;
-    }
-    .msg.ai {
-      align-self: flex-start;
-      background: #f0f0f0;
-      border-radius: 14px 14px 14px 2px;
-      padding: 8px 12px;
-      margin-right: 20%;
-    }
-    .msg .role {
-      font-weight: bold;
-      font-size: 0.93em;
-      margin-bottom: 2px;
-      color: #3898ec;
-    }
-    .msg.ai .role {
-      color: #9c27b0;
-    }
-    form {
-      display: flex;
-      padding: 12px 10px;
-      border-top: 1px solid #eaeaea;
+      padding: 20px;
       background: #fff;
+    }
+    
+    .message {
+      margin: 15px 0;
+      display: flex;
+      align-items: flex-start;
+      animation: messageSlide 0.3s ease-out;
+    }
+    
+    @keyframes messageSlide {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .message.user {
+      justify-content: flex-end;
+    }
+    
+    .message-content {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      position: relative;
+    }
+    
+    .message.user .message-content {
+      background: linear-gradient(135deg, #2266e3, #174aa1);
+      color: white;
+      border-bottom-right-radius: 6px;
+    }
+    
+    .message.ai .message-content {
+      background: #f1f3f4;
+      color: #333;
+      border-bottom-left-radius: 6px;
+    }
+    
+    .message-sender {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      opacity: 0.7;
+    }
+    
+    .message.user .message-sender {
+      text-align: right;
+      color: #2266e3;
+    }
+    
+    .message.ai .message-sender {
+      color: #666;
+    }
+    
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: #f1f3f4;
+      border-radius: 18px;
+      border-bottom-left-radius: 6px;
+      max-width: 80px;
+    }
+    
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #999;
+      animation: typingPulse 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    .typing-dot:nth-child(3) { animation-delay: 0s; }
+    
+    @keyframes typingPulse {
+      0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .input-section {
+      padding: 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e9ecef;
+      border-radius: 25px;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+    
+    input[type="text"]:focus {
+      border-color: #2266e3;
+    }
+    
+    select {
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #2266e3, #174aa1);
+      color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(34, 102, 227, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    button:disabled {
+      background: #ddd;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .button-row {
+      display: flex;
       gap: 10px;
     }
-    input[type="text"] {
-      flex: 1 1 auto;
-      padding: 10px;
-      font-size: 1em;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      outline: none;
+    
+    /* Scrollbar styling */
+    #chat-box::-webkit-scrollbar {
+      width: 6px;
     }
-    select {
-      padding: 10px;
-      font-size: 1em;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      background: #fcfcfc;
-      margin-right: 8px;
+    
+    #chat-box::-webkit-scrollbar-track {
+      background: #f1f1f1;
     }
-    button {
-      padding: 0 22px;
-      border-radius: 6px;
-      border: none;
-      background: #3898ec;
-      color: #fff;
-      font-size: 1em;
-      cursor: pointer;
-      transition: background .18s;
+    
+    #chat-box::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
     }
-    button:disabled {
-      background: #bbb;
-      cursor: not-allowed;
-    }
-    .error {
-      color: #b00020;
-      font-size: 0.98em;
-      padding: 8px 0 0 10px;
-    }
-    .info {
-      color: #444;
-      font-size: 0.96em;
-      padding: 8px 0 0 10px;
+    
+    #chat-box::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
     }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-history" id="chat-history"></div>
-    <form id="chat-form" autocomplete="off">
-      <select id="model-select">
-        <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
-        <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
-        <option value="anthropic/claude-3-opus">Claude 3 Opus (5/10min)</option>
-        <option value="anthropic/claude-3-haiku">Claude 3 Haiku (5/10min)</option>
-        <option value="anthropic/claude-3-sonnet">Claude 3 Sonnet (5/10min)</option>
-      </select>
-      <input id="chat-input" type="text" placeholder="Type a message..." autocomplete="off" required />
-      <button type="submit" id="send-btn">Send</button>
-    </form>
-    <div class="error" id="error"></div>
-    <div class="info" id="info"></div>
+  <div id="container">
+    <div class="header">
+      <h1>🤖 Fusion AI Chat</h1>
+    </div>
+    
+    <div class="controls">
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <div style="flex: 1;">
+          <label for="personality">AI Personality:</label>
+          <select id="personality">
+            <option value="Friendly">😊 Friendly (GPT-3.5)</option>
+            <option value="Professional">💼 Professional (GPT-4o Mini)</option>
+            <option value="Humorous">😄 Humorous (Claude-3 Haiku)</option>
+            <option value="Creative">🎨 Creative (GPT-4o)</option>
+            <option value="Analytical">🔬 Analytical (GPT-4o)</option>
+          </select>
+        </div>
+        <div style="flex: 1;">
+          <label for="model-select">Model Override:</label>
+          <select id="model-select">
+            <option value="">Auto (based on personality)</option>
+            <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+            <option value="openai/gpt-4o">GPT-4o</option>
+            <option value="anthropic/claude-3-haiku">Claude-3 Haiku</option>
+            <option value="anthropic/claude-3-sonnet">Claude-3 Sonnet</option>
+            <option value="google/gemini-pro">Gemini Pro</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <div id="chat-box"></div>
+    
+    <div class="input-section">
+      <div class="input-row">
+        <input type="text" id="user-input" placeholder="Type your message here..." maxlength="500">
+        <button id="send-btn" class="btn-primary">Send</button>
+      </div>
+      <div class="button-row">
+        <button id="clear-history" class="btn-secondary">Clear History</button>
+        <button id="export-history" class="btn-secondary">Export Chat</button>
+      </div>
+    </div>
   </div>
+
   <script>
-    const historyEl = document.getElementById('chat-history');
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
-    const errorEl = document.getElementById('error');
-    const infoEl = document.getElementById('info');
-    const modelSelect = document.getElementById('model-select');
-
-    // Models with a 5 message / 10 minute window
-    const limitedModels = [
-      "anthropic/claude-3-opus",
-      "anthropic/claude-3-haiku",
-      "anthropic/claude-3-sonnet"
-    ];
-    const LIMIT = 5;
-    const WINDOW_MINUTES = 10;
-    const WINDOW_MS = WINDOW_MINUTES * 60 * 1000;
-
-    // Chat and usage state
-    let history = [];
-    let usage = {}; // { model: [timestamps] }
-
-    // --- Persisted state helpers (sessionStorage) ---
-    function loadState() {
-      try {
-        history = JSON.parse(sessionStorage.getItem('chat-history') || '[]');
-        usage = JSON.parse(sessionStorage.getItem('chat-usage') || '{}');
-        const savedModel = sessionStorage.getItem('chat-model');
-        if (savedModel) modelSelect.value = savedModel;
-      } catch {}
-    }
-    function saveState() {
-      sessionStorage.setItem('chat-history', JSON.stringify(history));
-      sessionStorage.setItem('chat-usage', JSON.stringify(usage));
-      sessionStorage.setItem('chat-model', modelSelect.value);
-    }
-
-    // --- Chat UI ---
-    function renderHistory() {
-      historyEl.innerHTML = '';
-      for (const msg of history) {
-        const div = document.createElement('div');
-        div.className = 'msg ' + (msg.role === 'user' ? 'user' : 'ai');
-        div.innerHTML = `<span class="role">${msg.role === 'user' ? 'You' : 'AI'}</span>${escapeHTML(msg.text)}`;
-        historyEl.appendChild(div);
+    class FusionAIChat {
+      constructor() {
+        this.chatBox = document.getElementById('chat-box');
+        this.userInput = document.getElementById('user-input');
+        this.sendBtn = document.getElementById('send-btn');
+        this.clearHistoryBtn = document.getElementById('clear-history');
+        this.exportHistoryBtn = document.getElementById('export-history');
+        this.personalitySelect = document.getElementById('personality');
+        this.modelSelect = document.getElementById('model-select');
+        
+        // Store chat history in memory (no localStorage in artifacts)
+        this.chatHistory = [];
+        this.isTyping = false;
+        
+        this.initializeEventListeners();
+        this.loadWelcomeMessage();
       }
-      historyEl.scrollTop = historyEl.scrollHeight;
-    }
-    function escapeHTML(str) {
-      return str.replace(/[&<>"']/g, function(m) {
-        return ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        })[m];
-      });
-    }
-
-    // --- Model Selection and Usage Limiting ---
-    function getModel() {
-      return modelSelect.value;
-    }
-    function getUsage(model) {
-      if (!usage[model]) usage[model] = [];
-      // Prune old timestamps
-      const now = Date.now();
-      usage[model] = usage[model].filter(ts => now - ts < WINDOW_MS);
-      return usage[model];
-    }
-    function canSend(model) {
-      if (!limitedModels.includes(model)) return {ok:true};
-      const times = getUsage(model);
-      if (times.length < LIMIT) return {ok:true};
-      const nextOk = times[0] + WINDOW_MS - Date.now();
-      return {ok:false, wait:Math.ceil(nextOk/1000)};
-    }
-    function recordUsage(model) {
-      if (!usage[model]) usage[model] = [];
-      usage[model].push(Date.now());
-      saveState();
-    }
-    function updateInfo() {
-      const model = getModel();
-      if (!limitedModels.includes(model)) {
-        infoEl.textContent = '';
-        return;
+      
+      initializeEventListeners() {
+        this.sendBtn.addEventListener('click', () => this.sendMessage());
+        this.clearHistoryBtn.addEventListener('click', () => this.clearChatHistory());
+        this.exportHistoryBtn.addEventListener('click', () => this.exportChatHistory());
+        
+        this.userInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.sendMessage();
+          }
+        });
+        
+        this.userInput.addEventListener('input', () => {
+          this.sendBtn.disabled = this.userInput.value.trim() === '' || this.isTyping;
+        });
       }
-      const times = getUsage(model);
-      if (times.length < LIMIT) {
-        infoEl.textContent = `You have ${LIMIT - times.length} messages left for ${model.split('/')[1]} in this 10-minute window.`;
-      } else {
-        const wait = Math.ceil((times[0] + WINDOW_MS - Date.now())/1000);
-        infoEl.textContent = `Claude model limit reached. Wait ${wait} seconds to send another message.`;
+      
+      loadWelcomeMessage() {
+        const welcomeMessage = {
+          role: 'ai',
+          text: 'Hello! I\'m Fusion AI. How can I help you today?',
+          timestamp: new Date().toISOString()
+        };
+        this.chatHistory.push(welcomeMessage);
+        this.renderChatHistory();
       }
-    }
-
-    // --- Chat Logic ---
-    async function sendMessage(userText) {
-      errorEl.textContent = '';
-      sendBtn.disabled = true;
-      input.disabled = true;
-      modelSelect.disabled = true;
-      saveState();
-
-      const model = getModel();
-      // Rate limit check
-      const allowed = canSend(model);
-      if (!allowed.ok) {
-        errorEl.textContent = `Rate limit for ${model.split('/')[1]}: Wait ${allowed.wait} seconds.`;
-        sendBtn.disabled = false;
-        input.disabled = false;
-        modelSelect.disabled = false;
-        input.focus();
-        updateInfo();
-        return;
+      
+      renderChatHistory() {
+        this.chatBox.innerHTML = '';
+        
+        this.chatHistory.forEach((message, index) => {
+          this.createMessageElement(message, index);
+        });
+        
+        this.scrollToBottom();
       }
-
-      // Add user message to history
-      history.push({ role: 'user', text: userText });
-      renderHistory();
-      saveState();
-
-      try {
+      
+      createMessageElement(message, index) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${message.role}`;
+        messageDiv.dataset.messageIndex = index;
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        
+        const messageSender = document.createElement('div');
+        messageSender.className = 'message-sender';
+        messageSender.textContent = message.role === 'user' ? 'You' : 'Fusion AI';
+        
+        const messageText = document.createElement('div');
+        messageText.textContent = message.text;
+        
+        if (message.role === 'user') {
+          messageDiv.appendChild(messageSender);
+        }
+        
+        messageContent.appendChild(messageText);
+        messageDiv.appendChild(messageContent);
+        
+        if (message.role === 'ai') {
+          messageDiv.insertBefore(messageSender, messageContent);
+        }
+        
+        this.chatBox.appendChild(messageDiv);
+      }
+      
+      showTypingIndicator() {
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'message ai';
+        typingDiv.id = 'typing-indicator';
+        
+        const typingContent = document.createElement('div');
+        typingContent.className = 'typing-indicator';
+        
+        const typingDots = document.createElement('div');
+        typingDots.className = 'typing-dots';
+        
+        for (let i = 0; i < 3; i++) {
+          const dot = document.createElement('div');
+          dot.className = 'typing-dot';
+          typingDots.appendChild(dot);
+        }
+        
+        typingContent.appendChild(typingDots);
+        typingDiv.appendChild(typingContent);
+        this.chatBox.appendChild(typingDiv);
+        
+        this.scrollToBottom();
+      }
+      
+      hideTypingIndicator() {
+        const typingIndicator = document.getElementById('typing-indicator');
+        if (typingIndicator) {
+          typingIndicator.remove();
+        }
+      }
+      
+      async sendMessage() {
+        const userMessage = this.userInput.value.trim();
+        if (!userMessage || this.isTyping) return;
+        
+        // Add user's message to chat history
+        const userMessageObj = {
+          role: 'user',
+          text: userMessage,
+          timestamp: new Date().toISOString()
+        };
+        
+        this.chatHistory.push(userMessageObj);
+        this.renderChatHistory();
+        
+        // Clear input and disable send button
+        this.userInput.value = '';
+        this.isTyping = true;
+        this.sendBtn.disabled = true;
+        
+        // Show typing indicator
+        this.showTypingIndicator();
+        
+        try {
+          // Call OpenRouter API
+          const aiResponse = await this.callOpenRouterAPI();
+          
+          // Hide typing indicator
+          this.hideTypingIndicator();
+          
+          // Add AI's message to chat history
+          const aiMessageObj = {
+            role: 'ai',
+            text: aiResponse,
+            timestamp: new Date().toISOString()
+          };
+          
+          this.chatHistory.push(aiMessageObj);
+          this.renderChatHistory();
+          
+        } catch (error) {
+          this.hideTypingIndicator();
+          console.error('Error getting AI response:', error);
+          
+          const errorMessage = {
+            role: 'ai',
+            text: 'Sorry, I encountered an error. Please try again.',
+            timestamp: new Date().toISOString()
+          };
+          
+          this.chatHistory.push(errorMessage);
+          this.renderChatHistory();
+        } finally {
+          this.isTyping = false;
+          this.sendBtn.disabled = false;
+          this.userInput.focus();
+        }
+      }
+      
+      async callOpenRouterAPI() {
+        // Get the selected model or use default
+        const selectedModel = this.getSelectedModel();
+        
+        // Prepare the history for the API (exclude welcome message if it's the first)
+        const apiHistory = this.chatHistory.filter(msg => 
+          !(msg.text === 'Hello! I\'m Fusion AI. How can I help you today?' && msg.role === 'ai')
+        );
+        
+        // Add personality context to the first message if we have a personality selected
+        const personality = this.personalitySelect.value;
+        const personalityPrompt = this.getPersonalityPrompt(personality);
+        
+        // If this is the first real conversation, add personality context
+        let historyWithContext = [...apiHistory];
+        if (apiHistory.length === 1 && personalityPrompt) {
+          historyWithContext = [
+            { role: 'ai', text: personalityPrompt },
+            ...apiHistory
+          ];
+        }
+        
         const response = await fetch('/api/openrouter', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ history, model })
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            history: historyWithContext,
+            model: selectedModel
+          }),
         });
+        
         if (!response.ok) {
-          let err = 'Server error. Please try again.';
-          try {
-            const data = await response.json();
-            err = data.error || err;
-          } catch {}
-          throw new Error(err);
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'API request failed');
         }
+        
         const data = await response.json();
-        history.push({ role: 'assistant', text: data.text });
-        recordUsage(model);
-        renderHistory();
-        updateInfo();
-        saveState();
-      } catch (err) {
-        errorEl.textContent = err.message || 'Unknown error occurred.';
-        // Remove last user message if failed (to avoid bad history)
-        history.pop();
-        renderHistory();
-        updateInfo();
-        saveState();
+        return data.text || 'Sorry, I could not generate a response.';
       }
-      sendBtn.disabled = false;
-      input.disabled = false;
-      modelSelect.disabled = false;
-      input.focus();
+      
+      getSelectedModel() {
+        // Check if user has selected a specific model override
+        const modelOverride = this.modelSelect.value;
+        if (modelOverride) {
+          return modelOverride;
+        }
+        
+        // Otherwise use personality-based model selection
+        const personality = this.personalitySelect.value;
+        
+        // Map personalities to different models if desired
+        const modelMap = {
+          'Friendly': 'openai/gpt-3.5-turbo',
+          'Professional': 'openai/gpt-4o-mini',
+          'Humorous': 'anthropic/claude-3-haiku',
+          'Creative': 'openai/gpt-4o',
+          'Analytical': 'openai/gpt-4o'
+        };
+        
+        return modelMap[personality] || 'openai/gpt-3.5-turbo';
+      }
+      
+      getPersonalityPrompt(personality) {
+        const prompts = {
+          'Friendly': 'You are a friendly, warm, and helpful AI assistant. Respond in a casual, approachable manner with enthusiasm.',
+          'Professional': 'You are a professional AI assistant. Provide clear, structured, and business-appropriate responses.',
+          'Humorous': 'You are a witty and humorous AI assistant. Include appropriate jokes and light-hearted comments in your responses.',
+          'Creative': 'You are a creative and imaginative AI assistant. Think outside the box and provide innovative, artistic perspectives.',
+          'Analytical': 'You are an analytical AI assistant. Provide detailed, data-driven responses with logical reasoning and systematic analysis.'
+        };
+        
+        return prompts[personality] || '';
+      }
+      
+      clearChatHistory() {
+        if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
+          this.chatHistory = [];
+          this.loadWelcomeMessage();
+        }
+      }
+      
+      exportChatHistory() {
+        if (this.chatHistory.length === 0) {
+          alert('No chat history to export!');
+          return;
+        }
+        
+        const chatText = this.chatHistory.map(message => {
+          const sender = message.role === 'user' ? 'You' : 'Fusion AI';
+          const timestamp = new Date(message.timestamp).toLocaleString();
+          return `[${timestamp}] ${sender}: ${message.text}`;
+        }).join('\n\n');
+        
+        const blob = new Blob([chatText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fusion-ai-chat-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      scrollToBottom() {
+        setTimeout(() => {
+          this.chatBox.scrollTop = this.chatBox.scrollHeight;
+        }, 100);
+      }
     }
-
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      sendMessage(text);
-      input.value = '';
+    
+    // Initialize the chat application
+    document.addEventListener('DOMContentLoaded', () => {
+      new FusionAIChat();
     });
-
-    // --- Clear chat history and usage when switching model ---
-    modelSelect.addEventListener('change', () => {
-      history = [];
-      usage = {};
-      renderHistory();
-      updateInfo();
-      saveState();
-    });
-
-    // --- Initial Load ---
-    loadState();
-    renderHistory();
-    updateInfo();
-    input.focus();
   </script>
 </body>
 </html>
