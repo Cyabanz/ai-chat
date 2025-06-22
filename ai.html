@@ -2,630 +2,537 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>Fusion AI Chat (Firebase Sync)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fusion AI Chat</title>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <!-- Firebase Auth -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- Firebase Realtime Database -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style>
+    /* ... Same styles as before, minus image generation button ... */
     * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      margin: 0;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    #container {
-      max-width: 700px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-      overflow: hidden;
-    }
-    .header {
-      background: linear-gradient(135deg, #2266e3, #174aa1);
-      color: white;
-      padding: 20px;
-      text-align: center;
-    }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
-    .usage-bar {
-      background: #f8f9fa;
-      padding: 15px 20px;
-      border-bottom: 1px solid #e9ecef;
-    }
-    .usage-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .usage-item:last-child { margin-bottom: 0; }
-    .usage-label { font-size: 14px; color: #495057; font-weight: 500; }
-    .usage-count { font-size: 14px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
-    .usage-count.normal { background: #d4edda; color: #155724; }
-    .usage-count.warning { background: #fff3cd; color: #856404; }
-    .usage-count.limit { background: #f8d7da; color: #721c24; }
-    .controls {
-      padding: 15px 20px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
-    }
-    .controls label { display: block; margin-bottom: 5px; font-weight: 500; color: #495057; }
-    #chat-box {
-      height: 400px;
-      overflow-y: auto;
-      padding: 20px;
-      background: #fff;
-    }
-    .message {
-      margin: 15px 0;
-      display: flex;
-      align-items: flex-start;
-      animation: messageSlide 0.3s ease-out;
-    }
-    @keyframes messageSlide {
-      from { opacity: 0; transform: translateY(10px);}
-      to { opacity: 1; transform: translateY(0);}
-    }
-    .message.user { justify-content: flex-end; }
-    .message-content {
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: 18px;
-      position: relative;
-    }
-    .message.user .message-content {
-      background: linear-gradient(135deg, #2266e3, #174aa1);
-      color: white;
-      border-bottom-right-radius: 6px;
-    }
-    .message.ai .message-content {
-      background: #f1f3f4;
-      color: #333;
-      border-bottom-left-radius: 6px;
-    }
-    .message-sender {
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 4px;
-      opacity: 0.7;
-    }
-    .message.user .message-sender { text-align: right; color: #2266e3; }
-    .message.ai .message-sender { color: #666; }
-    .typing-indicator {
-      display: flex;
-      align-items: center;
-      padding: 12px 16px;
-      background: #f1f3f4;
-      border-radius: 18px;
-      border-bottom-left-radius: 6px;
-      max-width: 80px;
-    }
-    .typing-dots { display: flex; gap: 4px; }
-    .typing-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: #999;
-      animation: typingPulse 1.4s infinite ease-in-out;
-    }
-    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-    .typing-dot:nth-child(3) { animation-delay: 0s; }
-    @keyframes typingPulse {
-      0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-      40% { transform: scale(1); opacity: 1; }
-    }
-    .input-section {
-      padding: 20px;
-      background: #f8f9fa;
-      border-top: 1px solid #e9ecef;
-    }
-    .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
-    input[type="text"] {
-      flex: 1;
-      padding: 12px 16px;
-      border: 2px solid #e9ecef;
-      border-radius: 25px;
-      font-size: 16px;
-      outline: none;
-      transition: border-color 0.3s ease;
-    }
-    input[type="text"]:focus { border-color: #2266e3; }
-    select {
-      padding: 10px 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-      background: white;
-      cursor: pointer;
-    }
-    button {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 25px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, #2266e3, #174aa1);
-      color: white;
-    }
-    .btn-primary:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(34,102,227,0.3);
-    }
-    .btn-secondary { background: #6c757d; color: white; }
-    .btn-secondary:hover { background: #5a6268; }
-    .btn-success { background: #28a745; color: white; }
-    .btn-success:hover { background: #218838; }
-    .btn-info { background: #17a2b8; color: white; }
-    .btn-info:hover { background: #138496; }
-    button:disabled { background: #ddd; cursor: not-allowed; transform: none; }
-    .button-row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .search-history {
-      background: #e9ecef;
-      border-radius: 8px;
-      padding: 10px;
-      margin: 10px 0;
-      font-size: 14px;
-    }
-    .search-history h4 { margin: 0 0 8px 0; color: #495057; }
-    .search-item {
-      background: white;
-      padding: 6px 10px;
-      border-radius: 4px;
-      margin: 4px 0;
-      border-left: 3px solid #17a2b8;
-    }
-    .image-preview {
-      max-width: 200px;
-      border-radius: 8px;
-      margin: 10px 0;
-    }
-    .limit-notice {
-      background: #f8d7da;
-      color: #721c24;
-      padding: 10px;
-      border-radius: 6px;
-      margin: 10px 0;
-      font-size: 14px;
-      text-align: center;
-    }
-    #chat-box::-webkit-scrollbar { width: 6px; }
-    #chat-box::-webkit-scrollbar-track { background: #f1f1f1; }
-    #chat-box::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-    #chat-box::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh;}
+    #container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden;}
+    .header { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; padding: 20px; text-align: center;}
+    .header h1 { margin: 0; font-size: 24px; font-weight: 600;}
+    .usage-bar { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e9ecef;}
+    .usage-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;}
+    .usage-item:last-child { margin-bottom: 0;}
+    .usage-label { font-size: 14px; color: #495057; font-weight: 500;}
+    .usage-count { font-size: 14px; font-weight: 600; padding: 2px 8px; border-radius: 12px;}
+    .usage-count.normal { background: #d4edda; color: #155724;}
+    .usage-count.warning { background: #fff3cd; color: #856404;}
+    .usage-count.limit { background: #f8d7da; color: #721c24;}
+    .controls { padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;}
+    .controls label { display: block; margin-bottom: 5px; font-weight: 500; color: #495057;}
+    #chat-box { height: 400px; overflow-y: auto; padding: 20px; background: #fff;}
+    .message { margin: 15px 0; display: flex; align-items: flex-start; animation: messageSlide 0.3s ease-out;}
+    @keyframes messageSlide { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);}}
+    .message.user { justify-content: flex-end;}
+    .message-content { max-width: 80%; padding: 12px 16px; border-radius: 18px; position: relative;}
+    .message.user .message-content { background: linear-gradient(135deg, #2266e3, #174aa1); color: white; border-bottom-right-radius: 6px;}
+    .message.ai .message-content { background: #f1f3f4; color: #333; border-bottom-left-radius: 6px;}
+    .message-sender { font-size: 12px; font-weight: 600; margin-bottom: 4px; opacity: 0.7;}
+    .message.user .message-sender { text-align: right; color: #2266e3;}
+    .message.ai .message-sender { color: #666;}
+    .typing-indicator { display: flex; align-items: center; padding: 12px 16px; background: #f1f3f4; border-radius: 18px; border-bottom-left-radius: 6px; max-width: 80px;}
+    .typing-dots { display: flex; gap: 4px;}
+    .typing-dot { width: 8px; height: 8px; border-radius: 50%; background: #999; animation: typingPulse 1.4s infinite ease-in-out;}
+    .typing-dot:nth-child(1) { animation-delay: -0.32s;}
+    .typing-dot:nth-child(2) { animation-delay: -0.16s;}
+    .typing-dot:nth-child(3) { animation-delay: 0s;}
+    @keyframes typingPulse { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5;} 40% { transform: scale(1); opacity: 1;}}
+    .input-section { padding: 20px; background: #f8f9fa; border-top: 1px solid #e9ecef;}
+    .input-row { display: flex; gap: 10px; margin-bottom: 10px;}
+    input[type="text"] { flex: 1; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 25px; font-size: 16px; outline: none; transition: border-color 0.3s ease;}
+    input[type="text"]:focus { border-color: #2266e3;}
+    select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;}
+    button { padding: 12px 24px; border: none; border-radius: 25px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;}
+    .btn-primary { background: linear-gradient(135deg, #2266e3, #174aa1); color: white;}
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(34,102,227,0.3);}
+    .btn-secondary { background: #6c757d; color: white;}
+    .btn-secondary:hover { background: #5a6268;}
+    .btn-info { background: #17a2b8; color: white;}
+    .btn-info:hover { background: #138496;}
+    button:disabled { background: #ddd; cursor: not-allowed; transform: none;}
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap;}
+    .search-history { background: #e9ecef; border-radius: 8px; padding: 10px; margin: 10px 0; font-size: 14px;}
+    .search-history h4 { margin: 0 0 8px 0; color: #495057;}
+    .search-item { background: white; padding: 6px 10px; border-radius: 4px; margin: 4px 0; border-left: 3px solid #17a2b8;}
+    .limit-notice { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; text-align: center;}
+    #chat-box::-webkit-scrollbar { width: 6px;}
+    #chat-box::-webkit-scrollbar-track { background: #f1f1f1;}
+    #chat-box::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px;}
+    #chat-box::-webkit-scrollbar-thumb:hover { background: #a8a8a8;}
+    #auth-section { padding: 24px; text-align: center;}
+    #auth-section input { display: block; margin: 8px auto; padding: 10px 16px; border-radius: 6px; border: 1px solid #ccc; font-size: 15px;}
+    #logout-btn { margin-top: 10px; float: right;}
   </style>
 </head>
 <body>
-  <div id="container">
-    <div class="header">
-      <h1>🤖 Fusion AI Chat</h1>
+<div id="container" style="display:none;">
+  <div class="header">
+    <h1>🤖 Fusion AI Chat</h1>
+    <button id="logout-btn" class="btn-secondary" style="display:none;">Logout</button>
+  </div>
+  <div class="usage-bar">
+    <div class="usage-item">
+      <span class="usage-label">💬 Messages (per hour)</span>
+      <span id="message-count" class="usage-count normal">0/10</span>
     </div>
-    <div class="usage-bar">
-      <div class="usage-item">
-        <span class="usage-label">💬 Messages (per hour)</span>
-        <span id="message-count" class="usage-count normal">0/10</span>
-      </div>
-      <div class="usage-item">
-        <span class="usage-label">🎨 Image Generation (per day)</span>
-        <span id="image-count" class="usage-count normal">0/1</span>
-      </div>
-      <div class="usage-item">
-        <span class="usage-label">🔍 Web Searches (per day)</span>
-        <span id="search-count" class="usage-count normal">0/5</span>
-      </div>
+    <div class="usage-item">
+      <span class="usage-label">🔍 Web Searches (per day)</span>
+      <span id="search-count" class="usage-count normal">0/5</span>
     </div>
-    <div class="controls">
-      <div style="display: flex; gap: 15px; align-items: center;">
-        <div style="flex: 1;">
-          <label for="personality">AI Personality:</label>
-          <select id="personality">
-            <option value="Friendly">😊 Friendly (GPT-3.5)</option>
-            <option value="Professional">💼 Professional (GPT-4o Mini)</option>
-            <option value="Humorous">😄 Humorous (Claude-3 Haiku)</option>
-            <option value="Creative">🎨 Creative (GPT-4o)</option>
-            <option value="Analytical">🔬 Analytical (GPT-4o)</option>
-          </select>
-        </div>
-        <div style="flex: 1;">
-          <label for="model-select">Model Override:</label>
-          <select id="model-select">
-            <option value="">Auto (based on personality)</option>
-            <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-            <option value="openai/gpt-4o">GPT-4o</option>
-            <option value="anthropic/claude-3-haiku">Claude-3 Haiku</option>
-            <option value="anthropic/claude-3-sonnet">Claude-3 Sonnet</option>
-            <option value="google/gemini-pro">Gemini Pro</option>
-          </select>
-        </div>
+  </div>
+  <div class="controls">
+    <div style="display: flex; gap: 15px; align-items: center;">
+      <div style="flex: 1;">
+        <label for="personality">AI Personality:</label>
+        <select id="personality">
+          <option value="Friendly">😊 Friendly (GPT-3.5)</option>
+          <option value="Professional">💼 Professional (GPT-4o Mini)</option>
+          <option value="Humorous">😄 Humorous (Claude-3 Haiku)</option>
+          <option value="Creative">🎨 Creative (GPT-4o)</option>
+          <option value="Analytical">🔬 Analytical (GPT-4o)</option>
+        </select>
       </div>
-    </div>
-    <div id="chat-box"></div>
-    <div class="input-section">
-      <div class="input-row">
-        <input type="text" id="user-input" placeholder="Type your message here..." maxlength="500">
-        <button id="send-btn" class="btn-primary">Send</button>
-      </div>
-      <div class="button-row">
-        <button id="clear-history" class="btn-secondary">Clear History</button>
-        <button id="export-history" class="btn-secondary">Export Chat</button>
-        <button id="generate-image" class="btn-success">🎨 Generate Image</button>
-        <button id="web-search" class="btn-info">🔍 Web Search</button>
-        <button id="view-search-history" class="btn-info">Search History</button>
+      <div style="flex: 1;">
+        <label for="model-select">Model Override:</label>
+        <select id="model-select">
+          <option value="">Auto (based on personality)</option>
+          <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+          <option value="openai/gpt-4o">GPT-4o</option>
+          <option value="anthropic/claude-3-haiku">Claude-3 Haiku</option>
+          <option value="anthropic/claude-3-sonnet">Claude-3 Sonnet</option>
+          <option value="google/gemini-pro">Gemini Pro</option>
+        </select>
       </div>
     </div>
   </div>
-  <script>
-    class FusionAIChat {
-      constructor() {
-        this.chatBox = document.getElementById('chat-box');
-        this.userInput = document.getElementById('user-input');
-        this.sendBtn = document.getElementById('send-btn');
-        this.clearHistoryBtn = document.getElementById('clear-history');
-        this.exportHistoryBtn = document.getElementById('export-history');
-        this.generateImageBtn = document.getElementById('generate-image');
-        this.webSearchBtn = document.getElementById('web-search');
-        this.viewSearchHistoryBtn = document.getElementById('view-search-history');
-        this.personalitySelect = document.getElementById('personality');
-        this.modelSelect = document.getElementById('model-select');
-        this.messageCountEl = document.getElementById('message-count');
-        this.imageCountEl = document.getElementById('image-count');
-        this.searchCountEl = document.getElementById('search-count');
-        this.chatHistory = [];
-        this.usageData = this.initializeUsageData();
-        this.searchHistory = [];
-        this.isTyping = false;
-        this.initializeEventListeners();
-        this.loadWelcomeMessage();
+  <div id="chat-box"></div>
+  <div class="input-section">
+    <div class="input-row">
+      <input type="text" id="user-input" placeholder="Type your message here..." maxlength="500">
+      <button id="send-btn" class="btn-primary">Send</button>
+    </div>
+    <div class="button-row">
+      <button id="clear-history" class="btn-secondary">Clear History</button>
+      <button id="export-history" class="btn-secondary">Export Chat</button>
+      <button id="web-search" class="btn-info">🔍 Web Search</button>
+      <button id="view-search-history" class="btn-info">Search History</button>
+    </div>
+  </div>
+</div>
+<div id="auth-section">
+  <h2>Sign in to Fusion AI Chat</h2>
+  <input id="email" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="login-btn" class="btn-primary">Login</button>
+  <button id="signup-btn" class="btn-secondary">Sign Up</button>
+  <div>
+    <button id="google-btn" class="btn-info">Sign in with Google</button>
+  </div>
+  <div id="auth-error" style="color:#c00;font-size:14px;"></div>
+</div>
+<script>
+  // --- Firebase Setup ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyADCVIINCBgvTBvClWqWI5o3SlVS47IJnw",
+    authDomain: "fusioncya-cc20a.firebaseapp.com",
+    databaseURL: "https://fusioncya-cc20a-default-rtdb.firebaseio.com",
+    projectId: "fusioncya-cc20a",
+    storageBucket: "fusioncya-cc20a.appspot.com",
+    messagingSenderId: "765164293111",
+    appId: "1:765164293111:web:43e051c755c4690c0c3cf2",
+    measurementId: "G-4DT52P7MPB"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  // --- Auth UI Logic ---
+  const authSection = document.getElementById('auth-section');
+  const container = document.getElementById('container');
+  const logoutBtn = document.getElementById('logout-btn');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const loginBtn = document.getElementById('login-btn');
+  const signupBtn = document.getElementById('signup-btn');
+  const googleBtn = document.getElementById('google-btn');
+  const authError = document.getElementById('auth-error');
+
+  function showAuthError(msg) { authError.textContent = msg; }
+  function clearAuthError() { authError.textContent = ""; }
+
+  loginBtn.onclick = async () => {
+    clearAuthError();
+    try {
+      await auth.signInWithEmailAndPassword(emailInput.value.trim(), passwordInput.value);
+    } catch (e) {
+      showAuthError(e.message);
+    }
+  };
+  signupBtn.onclick = async () => {
+    clearAuthError();
+    try {
+      await auth.createUserWithEmailAndPassword(emailInput.value.trim(), passwordInput.value);
+    } catch (e) {
+      showAuthError(e.message);
+    }
+  };
+  googleBtn.onclick = async () => {
+    clearAuthError();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      await auth.signInWithPopup(provider);
+    } catch (e) {
+      showAuthError(e.message);
+    }
+  };
+  logoutBtn.onclick = () => auth.signOut();
+
+  // --- Main Chat App ---
+  let fusionChat = null;
+  let userId = null;
+
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      userId = user.uid;
+      container.style.display = '';
+      authSection.style.display = 'none';
+      logoutBtn.style.display = '';
+      if (!fusionChat) fusionChat = new FusionAIChat(userId);
+    } else {
+      userId = null;
+      container.style.display = 'none';
+      authSection.style.display = '';
+      logoutBtn.style.display = 'none';
+      fusionChat = null;
+    }
+  });
+
+  class FusionAIChat {
+    constructor(uid) {
+      this.uid = uid;
+      this.chatBox = document.getElementById('chat-box');
+      this.userInput = document.getElementById('user-input');
+      this.sendBtn = document.getElementById('send-btn');
+      this.clearHistoryBtn = document.getElementById('clear-history');
+      this.exportHistoryBtn = document.getElementById('export-history');
+      this.webSearchBtn = document.getElementById('web-search');
+      this.viewSearchHistoryBtn = document.getElementById('view-search-history');
+      this.personalitySelect = document.getElementById('personality');
+      this.modelSelect = document.getElementById('model-select');
+      this.messageCountEl = document.getElementById('message-count');
+      this.searchCountEl = document.getElementById('search-count');
+      this.chatHistory = [];
+      this.usageData = this.initializeUsageData();
+      this.searchHistory = [];
+      this.isTyping = false;
+      this.firebaseChatRef = db.ref(`users/${this.uid}/chatHistory`);
+      this.firebaseUsageRef = db.ref(`users/${this.uid}/usageData`);
+      this.firebaseSearchRef = db.ref(`users/${this.uid}/searchHistory`);
+      this.listenToFirebase();
+      this.initializeEventListeners();
+      this.updateUsageDisplay();
+      this.startUsageResetTimer();
+    }
+    listenToFirebase() {
+      this.firebaseChatRef.on('value', snap => {
+        this.chatHistory = snap.val() ? snap.val() : [];
+        this.renderChatHistory();
+      });
+      this.firebaseUsageRef.on('value', snap => {
+        if (snap.val()) this.usageData = snap.val();
         this.updateUsageDisplay();
-        this.startUsageResetTimer();
-      }
-      initializeUsageData() {
+      });
+      this.firebaseSearchRef.on('value', snap => {
+        this.searchHistory = snap.val() ? snap.val() : [];
+      });
+    }
+    initializeUsageData() {
+      const now = new Date();
+      return {
+        messages: { count: 0, resetTime: new Date(now.getTime() + 60 * 60 * 1000).toISOString() },
+        searches: { count: 0, resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString() }
+      };
+    }
+    initializeEventListeners() {
+      this.sendBtn.addEventListener('click', () => this.sendMessage());
+      this.clearHistoryBtn.addEventListener('click', () => this.clearChatHistory());
+      this.exportHistoryBtn.addEventListener('click', () => this.exportChatHistory());
+      this.webSearchBtn.addEventListener('click', () => this.performWebSearch());
+      this.viewSearchHistoryBtn.addEventListener('click', () => this.showSearchHistory());
+      this.userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.sendMessage();
+        }
+      });
+      this.userInput.addEventListener('input', () => { this.updateSendButtonState(); });
+    }
+    updateSendButtonState() {
+      const hasText = this.userInput.value.trim() !== '';
+      const withinMessageLimit = this.usageData.messages.count < 10;
+      this.sendBtn.disabled = !hasText || this.isTyping || !withinMessageLimit;
+    }
+    startUsageResetTimer() {
+      setInterval(() => {
         const now = new Date();
-        return {
-          messages: { count: 0, resetTime: new Date(now.getTime() + 60 * 60 * 1000) },
-          images: { count: 0, resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) },
-          searches: { count: 0, resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) }
-        };
+        let changed = false;
+        let usage = {...this.usageData};
+        if (now >= new Date(usage.messages.resetTime)) {
+          usage.messages.count = 0;
+          usage.messages.resetTime = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+          changed = true;
+        }
+        if (now >= new Date(usage.searches.resetTime)) {
+          usage.searches.count = 0;
+          usage.searches.resetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+          changed = true;
+        }
+        if (changed) this.firebaseUsageRef.set(usage);
+      }, 60000);
+    }
+    updateUsageDisplay() {
+      this.messageCountEl.textContent = `${this.usageData.messages.count}/10`;
+      this.messageCountEl.className = 'usage-count ' + this.getUsageClass(this.usageData.messages.count, 10);
+      this.searchCountEl.textContent = `${this.usageData.searches.count}/5`;
+      this.searchCountEl.className = 'usage-count ' + this.getUsageClass(this.usageData.searches.count, 5);
+      this.webSearchBtn.disabled = this.usageData.searches.count >= 5;
+      this.updateSendButtonState();
+    }
+    getUsageClass(current, limit) {
+      if (current >= limit) return 'limit';
+      if (current >= limit * 0.8) return 'warning';
+      return 'normal';
+    }
+    renderChatHistory() {
+      this.chatBox.innerHTML = '';
+      this.chatHistory.forEach((message, index) => {
+        this.createMessageElement(message, index);
+      });
+      this.scrollToBottom();
+    }
+    createMessageElement(message, index) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${message.role}`;
+      messageDiv.dataset.messageIndex = index;
+      const messageContent = document.createElement('div');
+      messageContent.className = 'message-content';
+      const messageSender = document.createElement('div');
+      messageSender.className = 'message-sender';
+      messageSender.textContent = message.role === 'user' ? 'You' : 'Fusion AI';
+      const messageText = document.createElement('div');
+      messageText.innerHTML = message.html || message.text;
+      if (message.role === 'user') {
+        messageDiv.appendChild(messageSender);
       }
-      initializeEventListeners() {
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
-        this.clearHistoryBtn.addEventListener('click', () => this.clearChatHistory());
-        this.exportHistoryBtn.addEventListener('click', () => this.exportChatHistory());
-        this.generateImageBtn.addEventListener('click', () => this.generateImage());
-        this.webSearchBtn.addEventListener('click', () => this.performWebSearch());
-        this.viewSearchHistoryBtn.addEventListener('click', () => this.showSearchHistory());
-        this.userInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            this.sendMessage();
-          }
-        });
-        this.userInput.addEventListener('input', () => { this.updateSendButtonState(); });
+      messageContent.appendChild(messageText);
+      messageDiv.appendChild(messageContent);
+      if (message.role === 'ai') {
+        messageDiv.insertBefore(messageSender, messageContent);
       }
-      updateSendButtonState() {
-        const hasText = this.userInput.value.trim() !== '';
-        const withinMessageLimit = this.usageData.messages.count < 10;
-        this.sendBtn.disabled = !hasText || this.isTyping || !withinMessageLimit;
+      this.chatBox.appendChild(messageDiv);
+    }
+    showTypingIndicator() {
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'message ai';
+      typingDiv.id = 'typing-indicator';
+      const typingContent = document.createElement('div');
+      typingContent.className = 'typing-indicator';
+      const typingDots = document.createElement('div');
+      typingDots.className = 'typing-dots';
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'typing-dot';
+        typingDots.appendChild(dot);
       }
-      startUsageResetTimer() {
-        setInterval(() => {
-          const now = new Date();
-          if (now >= this.usageData.messages.resetTime) {
-            this.usageData.messages.count = 0;
-            this.usageData.messages.resetTime = new Date(now.getTime() + 60 * 60 * 1000);
-          }
-          if (now >= this.usageData.images.resetTime) {
-            this.usageData.images.count = 0;
-            this.usageData.images.resetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-          }
-          if (now >= this.usageData.searches.resetTime) {
-            this.usageData.searches.count = 0;
-            this.usageData.searches.resetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-          }
-          this.updateUsageDisplay();
-        }, 60000);
+      typingContent.appendChild(typingDots);
+      typingDiv.appendChild(typingContent);
+      this.chatBox.appendChild(typingDiv);
+      this.scrollToBottom();
+    }
+    hideTypingIndicator() {
+      const typingIndicator = document.getElementById('typing-indicator');
+      if (typingIndicator) typingIndicator.remove();
+    }
+    getSelectedModel() {
+      const selected = this.modelSelect.value;
+      if (selected) return selected;
+      const p = this.personalitySelect.value;
+      if (p === "Friendly") return "openai/gpt-3.5-turbo";
+      if (p === "Professional") return "openai/gpt-4o-mini";
+      if (p === "Humorous") return "anthropic/claude-3-haiku";
+      if (p === "Creative") return "openai/gpt-4o";
+      if (p === "Analytical") return "openai/gpt-4o";
+      return "openai/gpt-3.5-turbo";
+    }
+    getPersonalityPrompt(personality) {
+      if (personality === "Friendly") return "You are a friendly, helpful, and approachable AI assistant.";
+      if (personality === "Professional") return "You are a professional, concise, businesslike AI assistant.";
+      if (personality === "Humorous") return "You are a witty, humorous, and light-hearted AI assistant.";
+      if (personality === "Creative") return "You are a creative, imaginative, and original AI assistant.";
+      if (personality === "Analytical") return "You are an analytical, logical, and precise AI assistant.";
+      return "";
+    }
+    async sendMessage() {
+      if (this.usageData.messages.count >= 10) {
+        this.showLimitNotice('You\'ve reached your hourly message limit (10 messages). Please wait for the limit to reset.');
+        return;
       }
-      updateUsageDisplay() {
-        this.messageCountEl.textContent = `${this.usageData.messages.count}/10`;
-        this.messageCountEl.className = 'usage-count ' + this.getUsageClass(this.usageData.messages.count, 10);
-        this.imageCountEl.textContent = `${this.usageData.images.count}/1`;
-        this.imageCountEl.className = 'usage-count ' + this.getUsageClass(this.usageData.images.count, 1);
-        this.searchCountEl.textContent = `${this.usageData.searches.count}/5`;
-        this.searchCountEl.className = 'usage-count ' + this.getUsageClass(this.usageData.searches.count, 5);
-        this.generateImageBtn.disabled = this.usageData.images.count >= 1;
-        this.webSearchBtn.disabled = this.usageData.searches.count >= 5;
-        this.updateSendButtonState();
-      }
-      getUsageClass(current, limit) {
-        if (current >= limit) return 'limit';
-        if (current >= limit * 0.8) return 'warning';
-        return 'normal';
-      }
-      loadWelcomeMessage() {
-        const welcomeMessage = {
+      const userMessage = this.userInput.value.trim();
+      if (!userMessage || this.isTyping) return;
+      this.usageData.messages.count++;
+      this.firebaseUsageRef.set(this.usageData);
+      const userMessageObj = { role: 'user', text: userMessage, timestamp: new Date().toISOString() };
+      const updatedHistory = [...this.chatHistory, userMessageObj];
+      this.firebaseChatRef.set(updatedHistory);
+      this.userInput.value = '';
+      this.isTyping = true;
+      this.updateSendButtonState();
+      this.showTypingIndicator();
+      try {
+        const aiResponse = await this.callOpenRouterAPI(updatedHistory);
+        this.hideTypingIndicator();
+        const aiMessageObj = { role: 'ai', text: aiResponse, timestamp: new Date().toISOString() };
+        this.firebaseChatRef.set([...updatedHistory, aiMessageObj]);
+      } catch (error) {
+        this.hideTypingIndicator();
+        const errorMessage = {
           role: 'ai',
-          text: 'Hello! I\'m Fusion AI. I can chat with you (10 messages per hour), generate images (1 per day), and search the web (5 times per day). How can I help you today?',
+          text: 'Sorry, I encountered an error communicating with the AI service. Please try again.',
           timestamp: new Date().toISOString()
         };
-        this.chatHistory.push(welcomeMessage);
-        this.renderChatHistory();
-      }
-      renderChatHistory() {
-        this.chatBox.innerHTML = '';
-        this.chatHistory.forEach((message, index) => {
-          this.createMessageElement(message, index);
-        });
-        this.scrollToBottom();
-      }
-      createMessageElement(message, index) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.role}`;
-        messageDiv.dataset.messageIndex = index;
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
-        const messageSender = document.createElement('div');
-        messageSender.className = 'message-sender';
-        messageSender.textContent = message.role === 'user' ? 'You' : 'Fusion AI';
-        const messageText = document.createElement('div');
-        messageText.innerHTML = message.html || message.text;
-        if (message.role === 'user') {
-          messageDiv.appendChild(messageSender);
-        }
-        messageContent.appendChild(messageText);
-        messageDiv.appendChild(messageContent);
-        if (message.role === 'ai') {
-          messageDiv.insertBefore(messageSender, messageContent);
-        }
-        this.chatBox.appendChild(messageDiv);
-      }
-      showTypingIndicator() {
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'message ai';
-        typingDiv.id = 'typing-indicator';
-        const typingContent = document.createElement('div');
-        typingContent.className = 'typing-indicator';
-        const typingDots = document.createElement('div');
-        typingDots.className = 'typing-dots';
-        for (let i = 0; i < 3; i++) {
-          const dot = document.createElement('div');
-          dot.className = 'typing-dot';
-          typingDots.appendChild(dot);
-        }
-        typingContent.appendChild(typingDots);
-        typingDiv.appendChild(typingContent);
-        this.chatBox.appendChild(typingDiv);
-        this.scrollToBottom();
-      }
-      hideTypingIndicator() {
-        const typingIndicator = document.getElementById('typing-indicator');
-        if (typingIndicator) typingIndicator.remove();
-      }
-      getSelectedModel() {
-        // Model override, or fallback based on personality
-        const selected = this.modelSelect.value;
-        if (selected) return selected;
-        const p = this.personalitySelect.value;
-        if (p === "Friendly") return "openai/gpt-3.5-turbo";
-        if (p === "Professional") return "openai/gpt-4o-mini";
-        if (p === "Humorous") return "anthropic/claude-3-haiku";
-        if (p === "Creative") return "openai/gpt-4o";
-        if (p === "Analytical") return "openai/gpt-4o";
-        return "openai/gpt-3.5-turbo";
-      }
-      getPersonalityPrompt(personality) {
-        if (personality === "Friendly") return "You are a friendly, helpful, and approachable AI assistant.";
-        if (personality === "Professional") return "You are a professional, concise, businesslike AI assistant.";
-        if (personality === "Humorous") return "You are a witty, humorous, and light-hearted AI assistant.";
-        if (personality === "Creative") return "You are a creative, imaginative, and original AI assistant.";
-        if (personality === "Analytical") return "You are an analytical, logical, and precise AI assistant.";
-        return "";
-      }
-      async sendMessage() {
-        if (this.usageData.messages.count >= 10) {
-          this.showLimitNotice('You\'ve reached your hourly message limit (10 messages). Please wait for the limit to reset.');
-          return;
-        }
-        const userMessage = this.userInput.value.trim();
-        if (!userMessage || this.isTyping) return;
-        this.usageData.messages.count++;
-        this.updateUsageDisplay();
-        const userMessageObj = {
-          role: 'user',
-          text: userMessage,
-          timestamp: new Date().toISOString()
-        };
-        this.chatHistory.push(userMessageObj);
-        this.renderChatHistory();
-        this.userInput.value = '';
-        this.isTyping = true;
+        this.firebaseChatRef.set([...updatedHistory, errorMessage]);
+      } finally {
+        this.isTyping = false;
         this.updateSendButtonState();
-        this.showTypingIndicator();
-        try {
-          const aiResponse = await this.callOpenRouterAPI();
-          this.hideTypingIndicator();
-          const aiMessageObj = {
-            role: 'ai',
-            text: aiResponse,
-            timestamp: new Date().toISOString()
-          };
-          this.chatHistory.push(aiMessageObj);
-          this.renderChatHistory();
-        } catch (error) {
-          this.hideTypingIndicator();
-          console.error('Error getting AI response:', error);
-          const errorMessage = {
-            role: 'ai',
-            text: 'Sorry, I encountered an error communicating with the AI service. Please try again.',
-            timestamp: new Date().toISOString()
-          };
-          this.chatHistory.push(errorMessage);
-          this.renderChatHistory();
-        } finally {
-          this.isTyping = false;
-          this.updateSendButtonState();
-          this.userInput.focus();
-        }
-      }
-      async callOpenRouterAPI() {
-        const selectedModel = this.getSelectedModel();
-        const apiHistory = this.chatHistory.filter(msg =>
-          !(msg.text.includes('Hello! I\'m Fusion AI') && msg.role === 'ai')
-        );
-        const personality = this.personalitySelect.value;
-        const personalityPrompt = this.getPersonalityPrompt(personality);
-        let historyWithContext = [...apiHistory];
-        if (apiHistory.length === 1 && personalityPrompt) {
-          historyWithContext = [
-            { role: 'ai', text: personalityPrompt },
-            ...apiHistory
-          ];
-        }
-        const response = await fetch('/api/openrouter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ history: historyWithContext, model: selectedModel }),
-        });
-        if (!response.ok) {
-          let errorData = {};
-          try { errorData = await response.json(); } catch {}
-          throw new Error(errorData.error || 'API request failed');
-        }
-        const data = await response.json();
-        return data.text || 'Sorry, I could not generate a response.';
-      }
-      async generateImage() {
-        if (this.usageData.images.count >= 1) {
-          this.showLimitNotice('You\'ve reached your daily image generation limit (1 image). Please wait until tomorrow.');
-          return;
-        }
-        const prompt = window.prompt('Enter a description for your image:');
-        if (!prompt) return;
-        this.usageData.images.count++;
-        this.updateUsageDisplay();
-        this.isTyping = true;
-        this.showTypingIndicator();
-        try {
-          const response = await fetch('/api/image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
-          });
-          const data = await response.json();
-          this.hideTypingIndicator();
-          if (!response.ok || !data.url) {
-            throw new Error(data.error || 'Failed to generate image.');
-          }
-          const imageMessage = {
-            role: 'ai',
-            text: `I've generated an image based on your prompt: "${prompt}"`,
-            html: `I've generated an image based on your prompt: "${prompt}"<br><img src="${data.url}" alt="Generated Image" class="image-preview">`,
-            timestamp: new Date().toISOString()
-          };
-          this.chatHistory.push(imageMessage);
-          this.renderChatHistory();
-        } catch (error) {
-          this.hideTypingIndicator();
-          this.showLimitNotice('Error generating image: ' + error.message);
-        } finally {
-          this.isTyping = false;
-          this.updateSendButtonState();
-        }
-      }
-      async performWebSearch() {
-        if (this.usageData.searches.count >= 5) {
-          this.showLimitNotice('You\'ve reached your daily web search limit (5 searches). Please wait until tomorrow.');
-          return;
-        }
-        const query = prompt('Enter your search query:');
-        if (!query) return;
-        this.usageData.searches.count++;
-        this.updateUsageDisplay();
-        this.searchHistory.push({
-          query: query,
-          timestamp: new Date().toISOString(),
-          results: 'Simulated search results...'
-        });
-        this.isTyping = true;
-        this.showTypingIndicator();
-        try {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          this.hideTypingIndicator();
-          const searchMessage = {
-            role: 'ai',
-            text: `Here are the search results for "${query}":\n\n🔍 Found 3 relevant results:\n1. Example Result 1 - Brief description\n2. Example Result 2 - Brief description\n3. Example Result 3 - Brief description\n\nWould you like me to search for something more specific?`,
-            timestamp: new Date().toISOString()
-          };
-          this.chatHistory.push(searchMessage);
-          this.renderChatHistory();
-        } catch (error) {
-          this.hideTypingIndicator();
-          this.showLimitNotice('Error performing web search. Please try again later.');
-        } finally {
-          this.isTyping = false;
-          this.updateSendButtonState();
-        }
-      }
-      showSearchHistory() {
-        if (this.searchHistory.length === 0) {
-          this.showLimitNotice('No search history available.');
-          return;
-        }
-        const historyHtml = this.searchHistory.map(search => {
-          const date = new Date(search.timestamp).toLocaleString();
-          return `<div class="search-item"><strong>${search.query}</strong><br><small>${date}</small></div>`;
-        }).join('');
-        const historyMessage = {
-          role: 'ai',
-          text: 'Search History',
-          html: `<div class="search-history"><h4>🔍 Your Search History</h4>${historyHtml}</div>`,
-          timestamp: new Date().toISOString()
-        };
-        this.chatHistory.push(historyMessage);
-        this.renderChatHistory();
-      }
-      showLimitNotice(message) {
-        const noticeDiv = document.createElement('div');
-        noticeDiv.className = 'limit-notice';
-        noticeDiv.textContent = message;
-        this.chatBox.appendChild(noticeDiv);
-        this.scrollToBottom();
-        setTimeout(() => { noticeDiv.remove(); }, 5000);
-      }
-      clearChatHistory() {
-        if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
-          this.chatHistory = [];
-          this.loadWelcomeMessage();
-        }
-      }
-      exportChatHistory() {
-        if (this.chatHistory.length === 0) {
-          alert('No chat history to export!');
-          return;
-        }
-        const chatText = this.chatHistory.map(message => {
-          const sender = message.role === 'user' ? 'You' : 'Fusion AI';
-          const timestamp = new Date(message.timestamp).toLocaleString();
-          return `[${timestamp}] ${sender}: ${message.text}`;
-        }).join('\n\n');
-        const usageStats = `\n\n--- Usage Statistics ---\nMessages this hour: ${this.usageData.messages.count}/10\nImages generated today: ${this.usageData.images.count}/1\nWeb searches today: ${this.usageData.searches.count}/5\n\n--- Search History ---\n${this.searchHistory.map(s => `${s.query} (${new Date(s.timestamp).toLocaleString()})`).join('\n')}`;
-        const blob = new Blob([chatText + usageStats], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `fusion-ai-chat-${new Date().toISOString().split('T')[0]}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-      scrollToBottom() {
-        setTimeout(() => { this.chatBox.scrollTop = this.chatBox.scrollHeight; }, 100);
+        this.userInput.focus();
       }
     }
-    document.addEventListener('DOMContentLoaded', () => { new FusionAIChat(); });
-  </script>
+    async callOpenRouterAPI(historyOverride) {
+      const selectedModel = this.getSelectedModel();
+      const apiHistory = (historyOverride || this.chatHistory).filter(msg =>
+        !(msg.text && msg.text.includes('Hello! I\'m Fusion AI') && msg.role === 'ai')
+      );
+      const personality = this.personalitySelect.value;
+      const personalityPrompt = this.getPersonalityPrompt(personality);
+      let historyWithContext = [...apiHistory];
+      if (apiHistory.length === 1 && personalityPrompt) {
+        historyWithContext = [
+          { role: 'ai', text: personalityPrompt },
+          ...apiHistory
+        ];
+      }
+      const response = await fetch('/api/openrouter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history: historyWithContext, model: selectedModel }),
+      });
+      if (!response.ok) {
+        let errorData = {};
+        try { errorData = await response.json(); } catch {}
+        throw new Error(errorData.error || 'API request failed');
+      }
+      const data = await response.json();
+      return data.text || 'Sorry, I could not generate a response.';
+    }
+    async performWebSearch() {
+      if (this.usageData.searches.count >= 5) {
+        this.showLimitNotice('You\'ve reached your daily web search limit (5 searches). Please wait until tomorrow.');
+        return;
+      }
+      const query = prompt('Enter your search query:');
+      if (!query) return;
+      this.usageData.searches.count++;
+      this.firebaseUsageRef.set(this.usageData);
+      const newSearch = { query: query, timestamp: new Date().toISOString(), results: 'Simulated search results...' };
+      const updatedSearches = [...this.searchHistory, newSearch];
+      this.firebaseSearchRef.set(updatedSearches);
+      this.isTyping = true;
+      this.showTypingIndicator();
+      try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        this.hideTypingIndicator();
+        const searchMessage = {
+          role: 'ai',
+          text: `Here are the search results for "${query}":\n\n🔍 Found 3 relevant results:\n1. Example Result 1 - Brief description\n2. Example Result 2 - Brief description\n3. Example Result 3 - Brief description\n\nWould you like me to search for something more specific?`,
+          timestamp: new Date().toISOString()
+        };
+        this.firebaseChatRef.set([...this.chatHistory, searchMessage]);
+      } catch (error) {
+        this.hideTypingIndicator();
+        this.showLimitNotice('Error performing web search. Please try again later.');
+      } finally {
+        this.isTyping = false;
+        this.updateSendButtonState();
+      }
+    }
+    showSearchHistory() {
+      if (this.searchHistory.length === 0) {
+        this.showLimitNotice('No search history available.');
+        return;
+      }
+      const historyHtml = this.searchHistory.map(search => {
+        const date = new Date(search.timestamp).toLocaleString();
+        return `<div class="search-item"><strong>${search.query}</strong><br><small>${date}</small></div>`;
+      }).join('');
+      const historyMessage = {
+        role: 'ai',
+        text: 'Search History',
+        html: `<div class="search-history"><h4>🔍 Your Search History</h4>${historyHtml}</div>`,
+        timestamp: new Date().toISOString()
+      };
+      this.firebaseChatRef.set([...this.chatHistory, historyMessage]);
+    }
+    showLimitNotice(message) {
+      const noticeDiv = document.createElement('div');
+      noticeDiv.className = 'limit-notice';
+      noticeDiv.textContent = message;
+      this.chatBox.appendChild(noticeDiv);
+      this.scrollToBottom();
+      setTimeout(() => { noticeDiv.remove(); }, 5000);
+    }
+    clearChatHistory() {
+      if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
+        this.firebaseChatRef.set([]);
+      }
+    }
+    exportChatHistory() {
+      if (this.chatHistory.length === 0) {
+        alert('No chat history to export!');
+        return;
+      }
+      const chatText = this.chatHistory.map(message => {
+        const sender = message.role === 'user' ? 'You' : 'Fusion AI';
+        const timestamp = new Date(message.timestamp).toLocaleString();
+        return `[${timestamp}] ${sender}: ${message.text}`;
+      }).join('\n\n');
+      const usageStats = `\n\n--- Usage Statistics ---\nMessages this hour: ${this.usageData.messages.count}/10\nWeb searches today: ${this.usageData.searches.count}/5\n\n--- Search History ---\n${this.searchHistory.map(s => `${s.query} (${new Date(s.timestamp).toLocaleString()})`).join('\n')}`;
+      const blob = new Blob([chatText + usageStats], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fusion-ai-chat-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    scrollToBottom() {
+      setTimeout(() => { this.chatBox.scrollTop = this.chatBox.scrollHeight; }, 100);
+    }
+  }
+
+  // Auto sign out on token expiry for security
+  auth.onIdTokenChanged(user => {
+    if (!user && fusionChat) fusionChat = null;
+  });
+</script>
 </body>
 </html>
