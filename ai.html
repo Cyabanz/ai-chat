@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fusion AI Chat (Firebase Google Auth Only)</title>
+  <title>Fusion AI Chat (Google Auth Only)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Firebase App (the core Firebase SDK) -->
+  <!-- Firebase Core -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <!-- Firebase Auth -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -212,6 +212,10 @@
       this.initializeEventListeners();
       this.updateUsageDisplay();
       this.startUsageResetTimer();
+      // Initial welcome message if none exists
+      this.firebaseChatRef.once('value', snap => {
+        if (!snap.exists()) this.addWelcomeMessage();
+      });
     }
     listenToFirebase() {
       this.firebaseChatRef.on('value', snap => {
@@ -470,9 +474,18 @@
       this.scrollToBottom();
       setTimeout(() => { noticeDiv.remove(); }, 5000);
     }
+    addWelcomeMessage() {
+      const welcomeMessage = {
+        role: 'ai',
+        text: 'Hello! I\'m Fusion AI. I can chat with you (10 messages per hour) and search the web (5 times per day). How can I help you today?',
+        timestamp: new Date().toISOString()
+      };
+      this.firebaseChatRef.set([welcomeMessage]);
+    }
     clearChatHistory() {
       if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
         this.firebaseChatRef.set([]);
+        setTimeout(() => this.addWelcomeMessage(), 100); // Restore welcome message
       }
     }
     exportChatHistory() {
@@ -500,11 +513,6 @@
       setTimeout(() => { this.chatBox.scrollTop = this.chatBox.scrollHeight; }, 100);
     }
   }
-
-  // Auto sign out on token expiry for security
-  auth.onIdTokenChanged(user => {
-    if (!user && fusionChat) fusionChat = null;
-  });
 </script>
 </body>
 </html>
