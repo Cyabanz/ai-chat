@@ -38,6 +38,10 @@
       text-align: left;
       color: #444;
     }
+    .message.typing {
+      font-style: italic;
+      color: #999;
+    }
     input, select, button {
       width: 100%;
       padding: 10px;
@@ -69,14 +73,12 @@
         <option value="Friendly">Friendly</option>
         <option value="Professional">Professional</option>
         <option value="Humorous">Humorous</option>
-        <option value="Empathetic">Empathetic</option> <!-- Added more personalities -->
       </select>
     </div>
     <div id="chat-box"></div>
     <input type="text" id="user-input" placeholder="Type your message here...">
     <button id="send-btn">Send</button>
     <button id="clear-history">Clear History</button>
-    <button id="download-history">Download Chat History</button> <!-- Added download feature -->
   </div>
   <script>
     const chatBox = document.getElementById('chat-box');
@@ -84,7 +86,6 @@
     const sendBtn = document.getElementById('send-btn');
     const clearHistoryBtn = document.getElementById('clear-history');
     const personalitySelect = document.getElementById('personality');
-    const downloadHistoryBtn = document.getElementById('download-history'); // Added reference to download button
 
     let chatHistory = JSON.parse(localStorage.getItem('fusionAIChatHistory') || '[]');
 
@@ -116,6 +117,12 @@
       userInput.value = '';
       sendBtn.disabled = true;
 
+      // Display typing animation
+      const typingMessage = document.createElement('div');
+      typingMessage.className = 'message ai typing';
+      typingMessage.textContent = 'Fusion AI is typing...';
+      chatBox.appendChild(typingMessage);
+
       // Send message to backend
       const personality = personalitySelect.value;
       const response = await fetch('/api/openrouter', {
@@ -132,6 +139,9 @@
       const data = await response.json();
       const aiMessage = data.text || 'Sorry, I could not generate a response.';
 
+      // Remove typing animation
+      chatBox.removeChild(typingMessage);
+
       // Add AI's message to chat history
       chatHistory.push({ role: 'ai', text: aiMessage });
       renderChatHistory();
@@ -146,19 +156,9 @@
       renderChatHistory();
     }
 
-    // Function to download chat history
-    function downloadChatHistory() {
-      const historyBlob = new Blob([JSON.stringify(chatHistory, null, 2)], { type: 'application/json' });
-      const downloadLink = document.createElement('a');
-      downloadLink.href = URL.createObjectURL(historyBlob);
-      downloadLink.download = 'chat_history.json';
-      downloadLink.click();
-    }
-
     // Event listeners
     sendBtn.addEventListener('click', sendMessage);
     clearHistoryBtn.addEventListener('click', clearChatHistory);
-    downloadHistoryBtn.addEventListener('click', downloadChatHistory); // Added listener for download button
 
     // Render chat history on page load
     renderChatHistory();
