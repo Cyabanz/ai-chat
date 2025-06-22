@@ -221,18 +221,18 @@ body {
   min-width: 0; 
 }
 
-/* Header - FIXED: Added more padding bottom and margin bottom for better separation */
+/* Header - FIXED: Added much more padding and margin for better separation */
 .header { 
   background: linear-gradient(135deg, var(--accent-blue), var(--darker-blue)); 
   color: var(--white-text); 
-  padding: 24px 28px 24px 28px; 
+  padding: 32px 28px 32px 28px; 
   text-align: left; 
   position: relative; 
   display: flex; 
   align-items: center; 
   gap: 14px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  margin-bottom: 8px; /* Added margin bottom for separation */
+  margin-bottom: 20px; /* Increased margin bottom for better separation */
 }
 
 .header i { 
@@ -247,15 +247,16 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Usage Bar - FIXED: Added margin top for better spacing */
+/* Usage Bar - FIXED: Added much more margin and padding for better spacing */
 .usage-bar { 
   background: var(--secondary-bg); 
-  padding: 18px 28px; /* Increased padding */
+  padding: 24px 28px; /* Increased padding significantly */
   border-bottom: 1px solid var(--border-light); 
   display: flex; 
   gap: 40px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-  margin-top: 4px; /* Added margin for separation */
+  margin-top: 12px; /* Increased margin for more separation */
+  margin-bottom: 12px; /* Added bottom margin */
 }
 
 .usage-item { 
@@ -296,15 +297,16 @@ body {
   color: var(--danger-text);
 }
 
-/* Controls - FIXED: Added margin top for better spacing */
+/* Controls - FIXED: Added much more margin and padding for better spacing */
 .controls { 
-  padding: 18px 28px; /* Increased padding */
+  padding: 24px 28px; /* Increased padding significantly */
   background: var(--secondary-bg); 
   border-bottom: 1px solid var(--border-light); 
   display: flex; 
   gap: 40px;
   flex-wrap: wrap;
-  margin-top: 4px; /* Added margin for separation */
+  margin-top: 12px; /* Increased margin for more separation */
+  margin-bottom: 20px; /* Added larger bottom margin */
 }
 
 .controls label { 
@@ -333,13 +335,13 @@ body {
   border-color: var(--border-focus);
 }
 
-/* Chat Box - FIXED: Added more padding top for better separation from header */
+/* Chat Box - FIXED: Added much more padding for better separation from header */
 #chat-box { 
   flex: 1; 
   overflow-y: auto; 
-  padding: 32px 28px 28px 28px; /* Increased top padding for better spacing */
+  padding: 48px 28px 28px 28px; /* Significantly increased top padding for much better spacing */
   background: var(--primary-bg);
-  margin-top: 8px; /* Added margin top for separation */
+  margin-top: 20px; /* Increased margin top for more separation */
 }
 
 .message { 
@@ -487,12 +489,12 @@ body {
   }
 }
 
-/* Input Section - FIXED: Added margin top for better separation */
+/* Input Section - FIXED: Added much more margin and padding for better separation */
 .input-section { 
-  padding: 28px; 
+  padding: 36px 28px; /* Increased padding significantly */
   background: var(--secondary-bg); 
   border-top: 2px solid var(--border-color); /* Made border thicker for better separation */
-  margin-top: 8px; /* Added margin for separation */
+  margin-top: 20px; /* Increased margin for more separation */
 }
 
 .input-row { 
@@ -734,11 +736,16 @@ button:disabled {
   }
   
   .header {
-    padding: 20px 24px 20px 24px;
+    padding: 28px 24px 28px 24px; /* Increased padding for mobile */
+    margin-bottom: 16px; /* Increased margin for mobile */
   }
   
   .header h1 {
     font-size: 22px;
+  }
+  
+  #chat-box {
+    padding: 40px 24px 24px 24px; /* Increased top padding for mobile */
   }
 }
 
@@ -749,12 +756,14 @@ button:disabled {
   }
   
   #chat-box {
-    padding: 24px 16px 16px 16px;
+    padding: 36px 16px 16px 16px; /* Increased top padding for small screens */
   }
   
   .controls, .usage-bar {
     flex-direction: column;
     gap: 12px;
+    padding: 20px 16px; /* Increased padding */
+    margin-bottom: 16px; /* Added margin */
   }
   
   .button-row {
@@ -778,7 +787,8 @@ button:disabled {
   }
   
   .header {
-    padding: 18px 16px 18px 16px;
+    padding: 24px 16px 24px 16px; /* Increased padding */
+    margin-bottom: 14px; /* Increased margin */
   }
   
   .header h1 {
@@ -802,7 +812,7 @@ button:disabled {
   }
   
   #chat-box {
-    padding: 20px 16px 16px 16px;
+    padding: 32px 16px 16px 16px; /* Increased top padding for very small screens */
   }
   
   .message {
@@ -811,5 +821,10 @@ button:disabled {
   
   .message-content {
     padding: 16px 18px;
+  }
+  
+  .input-section {
+    padding: 32px 16px; /* Increased padding */
+    margin-top: 16px; /* Added margin */
   }
 }
