@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fusion AI Chat (Firebase Sync)</title>
+  <title>Fusion AI Chat (Firebase Google Auth Only)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Firebase App (the core Firebase SDK) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -11,7 +11,6 @@
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style>
-    /* ... Same styles as before, minus image generation button ... */
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh;}
     #container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden;}
@@ -67,7 +66,6 @@
     #chat-box::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px;}
     #chat-box::-webkit-scrollbar-thumb:hover { background: #a8a8a8;}
     #auth-section { padding: 24px; text-align: center;}
-    #auth-section input { display: block; margin: 8px auto; padding: 10px 16px; border-radius: 6px; border: 1px solid #ccc; font-size: 15px;}
     #logout-btn { margin-top: 10px; float: right;}
   </style>
 </head>
@@ -129,13 +127,7 @@
 </div>
 <div id="auth-section">
   <h2>Sign in to Fusion AI Chat</h2>
-  <input id="email" type="email" placeholder="Email" autocomplete="username">
-  <input id="password" type="password" placeholder="Password" autocomplete="current-password">
-  <button id="login-btn" class="btn-primary">Login</button>
-  <button id="signup-btn" class="btn-secondary">Sign Up</button>
-  <div>
-    <button id="google-btn" class="btn-info">Sign in with Google</button>
-  </div>
+  <button id="google-btn" class="btn-info">Sign in with Google</button>
   <div id="auth-error" style="color:#c00;font-size:14px;"></div>
 </div>
 <script>
@@ -158,32 +150,12 @@
   const authSection = document.getElementById('auth-section');
   const container = document.getElementById('container');
   const logoutBtn = document.getElementById('logout-btn');
-  const emailInput = document.getElementById('email');
-  const passwordInput = document.getElementById('password');
-  const loginBtn = document.getElementById('login-btn');
-  const signupBtn = document.getElementById('signup-btn');
   const googleBtn = document.getElementById('google-btn');
   const authError = document.getElementById('auth-error');
 
   function showAuthError(msg) { authError.textContent = msg; }
   function clearAuthError() { authError.textContent = ""; }
 
-  loginBtn.onclick = async () => {
-    clearAuthError();
-    try {
-      await auth.signInWithEmailAndPassword(emailInput.value.trim(), passwordInput.value);
-    } catch (e) {
-      showAuthError(e.message);
-    }
-  };
-  signupBtn.onclick = async () => {
-    clearAuthError();
-    try {
-      await auth.createUserWithEmailAndPassword(emailInput.value.trim(), passwordInput.value);
-    } catch (e) {
-      showAuthError(e.message);
-    }
-  };
   googleBtn.onclick = async () => {
     clearAuthError();
     const provider = new firebase.auth.GoogleAuthProvider();
